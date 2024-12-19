@@ -385,3 +385,16 @@
         font-size: 2rem;
     }
 }
+
+.employee-selector {
+    margin: 20px 0;
+    padding: 15px;
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    box-shadow: 0 1px 1px rgba(0,0,0,.04);
+}
+
+.employee-selector select {
+    min-width: 200px;
+    padding: 5px;
+}

@@ -7,9 +7,13 @@ class Menphis_Employee_Dashboard {
     private $employee_id;
 
     public function __construct() {
-        $this->employee_id = get_current_user_id();
+        if (current_user_can('administrator')) {
+            $this->employee_id = isset($_GET['employee_id']) ? intval($_GET['employee_id']) : 0;
+        } else {
+            $this->employee_id = get_current_user_id();
+        }
         
-        // Agregar menú para empleados
+        // Agregar menú para empleados y administradores
         add_action('admin_menu', array($this, 'add_employee_menu'));
         
         // AJAX handlers
@@ -18,11 +22,11 @@ class Menphis_Employee_Dashboard {
     }
 
     public function add_employee_menu() {
-        if (current_user_can('menphis_employee')) {
+        if (current_user_can('administrator') || current_user_can('menphis_employee')) {
             add_menu_page(
-                __('Mis Reservas', 'menphis-reserva'),
-                __('Mis Reservas', 'menphis-reserva'),
-                'menphis_employee',
+                __('Reservas', 'menphis-reserva'),
+                __('Reservas', 'menphis-reserva'),
+                'read',
                 'menphis-employee-dashboard',
                 array($this, 'render_dashboard'),
                 'dashicons-calendar-alt',
@@ -32,6 +36,11 @@ class Menphis_Employee_Dashboard {
     }
 
     public function render_dashboard() {
+        if (current_user_can('administrator')) {
+            $employees = get_users(array('role' => 'menphis_employee'));
+            include MENPHIS_RESERVA_PLUGIN_DIR . 'includes/admin/views/employee-selector.php';
+        }
+
         // Obtener estadísticas
         $pending_bookings = $this->get_pending_bookings_count();
         $today_bookings = $this->get_today_bookings_count();
@@ -43,11 +52,13 @@ class Menphis_Employee_Dashboard {
 
     private function get_pending_bookings_count() {
         global $wpdb;
-        return $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$wpdb->prefix}menphis_bookings 
-            WHERE staff_id = %d AND status = 'pending'",
-            $this->employee_id
-        ));
+        $where = $this->employee_id ? "WHERE staff_id = %d" : "";
+        $query = "SELECT COUNT(*) FROM {$wpdb->prefix}menphis_bookings 
+                  {$where} AND status = 'pending'";
+                  
+        return $this->employee_id ? 
+               $wpdb->get_var($wpdb->prepare($query, $this->employee_id)) :
+               $wpdb->get_var($query);
     }
 
     private function get_today_bookings_count() {
