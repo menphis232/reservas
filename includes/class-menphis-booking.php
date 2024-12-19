@@ -93,4 +93,23 @@ class MenphisBooking {
         
         wp_send_json_success();
     }
+
+    public function save() {
+        // ... código existente ...
+        
+        // Modificar cómo obtenemos el ID del empleado
+        if (!empty($_POST['employee'])) {
+            // Obtener el ID real del empleado en lugar del wp_user_id
+            global $wpdb;
+            $employee_table = $wpdb->prefix . 'menphis_employees';
+            $employee_id = $wpdb->get_var($wpdb->prepare(
+                "SELECT id FROM $employee_table WHERE wp_user_id = %d",
+                $_POST['employee']
+            ));
+            
+            $this->employee_id = $employee_id;
+        }
+        
+        // ... resto del código ...
+    }
 } 

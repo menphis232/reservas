@@ -80,6 +80,7 @@
                                     <th>Fecha</th>
                                     <th>Hora</th>
                                     <th>Empleado</th>
+                                    <th>Estado</th>
                                     <th>Acciones</th>
                                 </tr>
                             </thead>
@@ -91,20 +92,21 @@
                                 <?php else : ?>
                                     <?php foreach ($bookings as $booking) : ?>
                                         <tr>
-                                            <td><?php echo esc_html($booking->ID); ?></td>
+                                            <td><?php echo esc_html($booking->id); ?></td>
                                             <td><?php echo esc_html($booking->customer_name); ?></td>
                                             <td><?php echo esc_html($booking->location_name); ?></td>
-                                            <td><?php echo esc_html($booking->booking_date); ?></td>
-                                            <td><?php echo esc_html($booking->booking_time); ?></td>
-                                            <td><?php echo esc_html($booking->staff_name); ?></td>
+                                            <td><?php echo esc_html(date('d/m/Y', strtotime($booking->booking_date))); ?></td>
+                                            <td><?php echo esc_html(date('H:i', strtotime($booking->booking_time))); ?></td>
+                                            <td><?php echo esc_html($booking->staff_name ?: 'Sin asignar'); ?></td>
+                                            <td><?php echo esc_html($booking->status); ?></td>
                                             <td>
-                                                <button class="btn-small waves-effect waves-light blue view-booking" data-id="<?php echo esc_attr($booking->ID); ?>">
+                                                <button class="btn-small waves-effect waves-light blue view-booking" data-id="<?php echo esc_attr($booking->id); ?>">
                                                     <i class="material-icons">visibility</i>
                                                 </button>
-                                                <button class="btn-small waves-effect waves-light green edit-booking" data-id="<?php echo esc_attr($booking->ID); ?>">
+                                                <button class="btn-small waves-effect waves-light green edit-booking" data-id="<?php echo esc_attr($booking->id); ?>">
                                                     <i class="material-icons">edit</i>
                                                 </button>
-                                                <button class="btn-small waves-effect waves-light red delete-booking" data-id="<?php echo esc_attr($booking->ID); ?>">
+                                                <button class="btn-small waves-effect waves-light red delete-booking" data-id="<?php echo esc_attr($booking->id); ?>">
                                                     <i class="material-icons">delete</i>
                                                 </button>
                                             </td>

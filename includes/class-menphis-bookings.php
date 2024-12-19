@@ -42,6 +42,19 @@ class Menphis_Bookings {
 
         // Agregar scripts y datos para el JavaScript
         add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_scripts'));
+
+        // Modificar los hooks de WooCommerce para el proceso de checkout
+        add_action('woocommerce_checkout_process', array($this, 'validate_booking_data'));
+        add_action('woocommerce_checkout_order_processed', array($this, 'save_booking_data'), 10, 3);
+        add_action('woocommerce_payment_complete', array($this, 'create_booking_from_order'));
+        
+        // Para pagos contra reembolso y otros métodos
+        add_action('woocommerce_order_status_processing', array($this, 'create_booking_from_order'));
+        add_action('woocommerce_order_status_completed', array($this, 'create_booking_from_order'));
+        add_action('woocommerce_order_status_on-hold', array($this, 'create_booking_from_order'));
+
+        // Actualizar estado de la reserva cuando cambia el estado de la orden
+        add_action('woocommerce_order_status_changed', array($this, 'update_booking_status'), 10, 3);
     }
 
     public function enqueue_booking_scripts() {
@@ -53,86 +66,25 @@ class Menphis_Bookings {
     }
 
     public function render_bookings_page() {
-        static $call_count = 0;
-        $call_count++;
-        error_log("=== INICIO RENDER BOOKINGS PAGE (llamada #$call_count) ===");
-        
         try {
             global $wpdb;
 
             error_log('Ejecutando consulta de reservas...');
             $query = "
                 SELECT 
-                    p.ID,
-                    p.post_date,
-                    p.post_status,
-                    MAX(CASE WHEN pm.meta_key = '_customer_name' THEN pm.meta_value END) as customer_name,
-                    MAX(CASE WHEN pm.meta_key = '_location_id' THEN pm.meta_value END) as location_id,
-                    MAX(CASE WHEN pm.meta_key = '_booking_date' THEN pm.meta_value END) as booking_date,
-                    MAX(CASE WHEN pm.meta_key = '_booking_time' THEN pm.meta_value END) as booking_time,
-                    MAX(CASE WHEN pm.meta_key = '_assigned_staff' THEN pm.meta_value END) as assigned_staff
-                FROM {$wpdb->posts} p
-                LEFT JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
-                WHERE p.post_type = 'menphis_booking'
-                AND p.post_status IN ('publish', 'pending')
-                GROUP BY p.ID
-                ORDER BY STR_TO_DATE(MAX(CASE WHEN pm.meta_key = '_booking_date' THEN pm.meta_value END), '%Y-%m-%d') DESC,
-                         MAX(CASE WHEN pm.meta_key = '_booking_time' THEN pm.meta_value END) DESC";
+                    b.*,
+                    u.display_name as customer_name,
+                    l.name as location_name,
+                    CONCAT(us.display_name) as staff_name
+                FROM {$wpdb->prefix}menphis_bookings b
+                LEFT JOIN {$wpdb->users} u ON b.customer_id = u.ID
+                LEFT JOIN {$wpdb->prefix}menphis_locations l ON b.location_id = l.id
+                LEFT JOIN {$wpdb->prefix}menphis_staff s ON b.staff_id = s.id
+                LEFT JOIN {$wpdb->users} us ON s.wp_user_id = us.ID
+                ORDER BY b.booking_date DESC, b.booking_time DESC";
 
-            $results = $wpdb->get_results($query);
-            error_log('Resultados de la consulta: ' . print_r($results, true));
-
-            $bookings = array();
-            foreach ($results as $result) {
-                // Obtener nombre de la ubicación
-                $location_name = '';
-                if (!empty($result->location_id)) {
-                    $location = $wpdb->get_row($wpdb->prepare(
-                        "SELECT name FROM {$wpdb->prefix}menphis_locations WHERE id = %d",
-                        $result->location_id
-                    ));
-                    $location_name = $location ? $location->name : '';
-                }
-
-                // Obtener nombre del empleado
-                $staff_name = 'Sin asignar';
-                if (!empty($result->assigned_staff)) {
-                    $assigned_staff = maybe_unserialize($result->assigned_staff);
-                    
-                    if (is_array($assigned_staff)) {
-                        $staff_ids = array_map(function($staff) {
-                            return is_array($staff) ? $staff['id'] : $staff;
-                        }, $assigned_staff);
-                        
-                        $staff_query = $wpdb->prepare(
-                            "SELECT GROUP_CONCAT(u.display_name SEPARATOR ', ') as names
-                            FROM {$wpdb->prefix}menphis_staff ms
-                            JOIN {$wpdb->users} u ON ms.wp_user_id = u.ID
-                            WHERE ms.id IN (" . implode(',', array_fill(0, count($staff_ids), '%d')) . ")",
-                            $staff_ids
-                        );
-                        
-                        $staff_name = $wpdb->get_var($staff_query) ?: 'N/A';
-                    } else {
-                        error_log('El valor de assigned_staff no es un array: ' . print_r($assigned_staff, true));
-                    }
-                }
-
-                // Formatear fecha y hora
-                $booking_date = !empty($result->booking_date) ? date('d/m/Y', strtotime($result->booking_date)) : '';
-                $booking_time = !empty($result->booking_time) ? date('H:i', strtotime($result->booking_time)) : '';
-
-                $bookings[] = (object) array(
-                    'ID' => $result->ID,
-                    'customer_name' => $result->customer_name ?: 'Sin nombre',
-                    'location_name' => $location_name ?: 'Sin ubicación',
-                    'booking_date' => $booking_date,
-                    'booking_time' => $booking_time,
-                    'staff_name' => $staff_name
-                );
-            }
-
-            error_log('Reservas procesadas: ' . print_r($bookings, true));
+            $bookings = $wpdb->get_results($query);
+            error_log('Resultados de la consulta: ' . print_r($bookings, true));
 
             // Obtener datos necesarios para los filtros
             $customers = $this->get_customers_list();
@@ -157,80 +109,60 @@ class Menphis_Bookings {
             // Obtener filtros
             $filters = isset($_POST['filters']) ? $_POST['filters'] : array();
             
-            // Construir argumentos de consulta
-            $args = array(
-                'post_type' => 'menphis_booking',
-                'post_status' => 'publish',
-                'posts_per_page' => -1,
-                'meta_query' => array()
-            );
+            // Construir la consulta base
+            $query = "
+                SELECT 
+                    b.*,
+                    u.display_name as customer_name,
+                    l.name as location_name,
+                    CONCAT(us.display_name) as staff_name
+                FROM {$this->db->prefix}menphis_bookings b
+                LEFT JOIN {$this->db->users} u ON b.customer_id = u.ID
+                LEFT JOIN {$this->db->prefix}menphis_locations l ON b.location_id = l.id
+                LEFT JOIN {$this->db->prefix}menphis_staff s ON b.staff_id = s.id
+                LEFT JOIN {$this->db->users} us ON s.wp_user_id = us.ID
+                WHERE 1=1";
+
+            $where = array();
+            $values = array();
 
             // Aplicar filtros
             if (!empty($filters['booking_id'])) {
-                $args['p'] = intval($filters['booking_id']);
+                $where[] = "b.id = %d";
+                $values[] = intval($filters['booking_id']);
             }
 
             if (!empty($filters['date_from'])) {
-                $args['meta_query'][] = array(
-                    'key' => '_booking_date',
-                    'value' => $filters['date_from'],
-                    'compare' => '>='
-                );
+                $where[] = "b.booking_date >= %s";
+                $values[] = $filters['date_from'];
             }
 
             if (!empty($filters['date_to'])) {
-                $args['meta_query'][] = array(
-                    'key' => '_booking_date',
-                    'value' => $filters['date_to'],
-                    'compare' => '<='
-                );
+                $where[] = "b.booking_date <= %s";
+                $values[] = $filters['date_to'];
             }
 
-            // Obtener reservas
-            $bookings = get_posts($args);
-            $formatted_bookings = array();
-
-            foreach ($bookings as $booking) {
-                // Obtener datos de la ubicación
-                $location_id = get_post_meta($booking->ID, '_location_id', true);
-                $location_name = '';
-                
-                // Obtener el nombre de la ubicación desde la tabla menphis_locations
-                if ($location_id) {
-                    global $wpdb;
-                    $location_name = $wpdb->get_var($wpdb->prepare(
-                        "SELECT name FROM {$wpdb->prefix}menphis_locations WHERE id = %d",
-                        $location_id
-                    ));
-                }
-
-                // Obtener datos del personal asignado
-                $assigned_staff = get_post_meta($booking->ID, '_assigned_staff', true);
-                $staff_name = '';
-                if ($assigned_staff && !empty($assigned_staff[0])) {
-                    $staff_user = get_userdata($assigned_staff[0]);
-                    $staff_name = $staff_user ? $staff_user->display_name : 'N/A';
-                }
-
-                // Debug
-                error_log('Datos de reserva ' . $booking->ID . ': ' . print_r([
-                    'location_id' => $location_id,
-                    'location_name' => $location_name,
-                    'staff' => $assigned_staff,
-                    'staff_name' => $staff_name
-                ], true));
-
-                $formatted_bookings[] = array(
-                    'ID' => $booking->ID,
-                    'customer_name' => get_post_meta($booking->ID, '_customer_name', true),
-                    'location_name' => $location_name,
-                    'booking_date' => get_post_meta($booking->ID, '_booking_date', true),
-                    'booking_time' => get_post_meta($booking->ID, '_booking_time', true),
-                    'staff_name' => $staff_name
-                );
+            if (!empty($filters['status'])) {
+                $where[] = "b.status = %s";
+                $values[] = $filters['status'];
             }
 
-            wp_send_json_success($formatted_bookings);
+            // Agregar condiciones WHERE si existen
+            if (!empty($where)) {
+                $query .= " AND " . implode(" AND ", $where);
+            }
+
+            // Ordenar resultados
+            $query .= " ORDER BY b.booking_date DESC, b.booking_time DESC";
+
+            // Preparar la consulta si hay valores
+            if (!empty($values)) {
+                $query = $this->db->prepare($query, $values);
+            }
+
+            $bookings = $this->db->get_results($query);
+
+            wp_send_json_success($bookings);
 
         } catch (Exception $e) {
             error_log('Error en ajax_get_bookings_list: ' . $e->getMessage());
@@ -791,24 +723,17 @@ class Menphis_Bookings {
             error_log('=== INICIO SAVE_BOOKING_DATA ===');
             error_log('Order ID: ' . $order_id);
             
-            // Obtener datos de la sesión
             $booking_data = WC()->session->get('booking_data');
-            error_log('Datos de reserva en sesión: ' . print_r($booking_data, true));
-
             if (empty($booking_data)) {
                 error_log('No hay datos de reserva en la sesión');
                 return;
             }
 
             // Guardar datos en la orden
-            update_post_meta($order_id, '_booking_location', $booking_data['location_id']);
-            update_post_meta($order_id, '_booking_date', $booking_data['booking_date']);
-            update_post_meta($order_id, '_booking_time', $booking_data['booking_time']);
-            update_post_meta($order_id, '_services', $booking_data['services']);
-            if (!empty($booking_data['available_staff'])) {
-                update_post_meta($order_id, '_available_staff', $booking_data['available_staff']);
-            }
-
+            update_post_meta($order_id, '_booking_location', $booking_data['location']);
+            update_post_meta($order_id, '_booking_date', $booking_data['date']);
+            update_post_meta($order_id, '_booking_time', $booking_data['time']);
+            
             error_log('Datos guardados en la orden: ' . print_r(get_post_meta($order_id), true));
             error_log('=== FIN SAVE_BOOKING_DATA ===');
 
@@ -826,73 +751,86 @@ class Menphis_Bookings {
             error_log('=== INICIO CREATE_BOOKING_FROM_ORDER ===');
             error_log('Order ID: ' . $order_id);
             
+            // Verificar si ya existe una reserva para esta orden
+            global $wpdb;
+            $existing_booking = $wpdb->get_var($wpdb->prepare(
+                "SELECT id FROM {$wpdb->prefix}menphis_bookings WHERE order_id = %d",
+                $order_id
+            ));
+
+            if ($existing_booking) {
+                error_log('Ya existe una reserva para esta orden');
+                return;
+            }
+            
             $order = wc_get_order($order_id);
             if (!$order) {
-                throw new Exception('Orden no encontrada');
+                error_log('Orden no encontrada');
+                return;
             }
 
-            // Obtener datos de la sesión
             $booking_data = WC()->session->get('booking_data');
-            error_log('Datos de reserva en sesión: ' . print_r($booking_data, true));
-
-            // Obtener datos de la orden
-            $location_id = get_post_meta($order_id, '_booking_location', true);
-            $booking_date = get_post_meta($order_id, '_booking_date', true);
-            $booking_time = get_post_meta($order_id, '_booking_time', true);
-
-            // Usar datos de la sesión si están disponibles, si no, usar los de la orden
-            $location = !empty($booking_data['location']) ? $booking_data['location'] : $location_id;
-            $date = !empty($booking_data['date']) ? $booking_data['date'] : $booking_date;
-            $time = !empty($booking_data['time']) ? $booking_data['time'] : $booking_time;
-
-            if (!$location || !$date || !$time) {
-                throw new Exception('Faltan datos necesarios para la reserva');
+            if (empty($booking_data)) {
+                error_log('No hay datos de reserva en la sesión');
+                return;
             }
 
-            // Crear la reserva
-            $booking_args = array(
-                'post_title'  => 'Reserva para orden #' . $order_id,
-                'post_type'   => 'menphis_booking',
-                'post_status' => 'publish',
-                'meta_input'  => array(
-                    '_order_id'       => $order_id,
-                    '_location_id'    => $location,
-                    '_booking_date'   => $date,
-                    '_booking_time'   => $time,
-                    '_customer_id'    => $order->get_customer_id(),
-                    '_customer_name'  => $order->get_billing_first_name() . ' ' . $order->get_billing_last_name(),
-                    '_customer_email' => $order->get_billing_email(),
-                    '_customer_phone' => $order->get_billing_phone(),
-                    '_assigned_staff' => !empty($booking_data['available_staff']) ? $booking_data['available_staff'] : array()
+            // Determinar el estado de la reserva basado en el estado de la orden
+            $order_status = $order->get_status();
+            $booking_status = 'pending';
+            
+            // Si la orden está completada o procesando, marcar la reserva como completada
+            if (in_array($order_status, array('completed', 'processing'))) {
+                $booking_status = 'completed';
+            }
+
+            $data_to_insert = array(
+                'customer_id' => $order->get_customer_id(),
+                'staff_id' => 0,
+                'location_id' => $booking_data['location'],
+                'booking_date' => $booking_data['date'],
+                'booking_time' => $booking_data['time'],
+                'status' => $booking_status, // Usar el estado determinado
+                'created_at' => current_time('mysql'),
+                'order_id' => $order_id
+            );
+
+            $result = $wpdb->insert(
+                $wpdb->prefix . 'menphis_bookings',
+                $data_to_insert,
+                array(
+                    '%d', // customer_id
+                    '%d', // staff_id
+                    '%d', // location_id
+                    '%s', // booking_date
+                    '%s', // booking_time
+                    '%s', // status
+                    '%s', // created_at
+                    '%d'  // order_id
                 )
             );
 
-            error_log('Intentando crear reserva con datos: ' . print_r($booking_args, true));
-
-            // Insertar la reserva
-            $booking_id = wp_insert_post($booking_args);
-
-            if (is_wp_error($booking_id)) {
-                throw new Exception('Error al crear la reserva: ' . $booking_id->get_error_message());
+            if ($result === false) {
+                error_log('Error al insertar la reserva: ' . $wpdb->last_error);
+                return;
             }
 
+            $booking_id = $wpdb->insert_id;
             error_log('Reserva creada con ID: ' . $booking_id);
 
-            // Limpiar datos de sesión
+            // Limpiar datos de sesión después de crear la reserva
             WC()->session->set('booking_data', null);
 
-            // Agregar nota a la orden
-            $order->add_order_note(sprintf('Reserva creada exitosamente (ID: %s)', $booking_id));
+            // Agregar nota con el estado de la reserva
+            $order->add_order_note(sprintf(
+                'Reserva creada exitosamente (ID: %s) con estado: %s', 
+                $booking_id,
+                $booking_status
+            ));
             $order->save();
-
-            error_log('=== FIN CREATE_BOOKING_FROM_ORDER ===');
 
         } catch (Exception $e) {
             error_log('ERROR en create_booking_from_order: ' . $e->getMessage());
-            if (isset($order)) {
-                $order->add_order_note('Error al crear la reserva: ' . $e->getMessage());
-                $order->save();
-            }
         }
     }
 
@@ -1232,19 +1170,59 @@ class Menphis_Bookings {
 
         $booking_id = isset($_POST['booking_id']) ? intval($_POST['booking_id']) : 0;
         
+        error_log('=== INICIO GET_BOOKING_DATA ===');
+        error_log('Booking ID recibido: ' . $booking_id);
+        
         if (!$booking_id) {
             wp_send_json_error('ID de reserva no válido');
             return;
         }
 
-        // Obtener los datos de la reserva
-        $booking = $this->get_booking($booking_id);
+        global $wpdb;
+        
+        // Primero verificar si existe la reserva
+        $exists = $wpdb->get_var($wpdb->prepare(
+            "SELECT id FROM {$wpdb->prefix}menphis_bookings WHERE id = %d",
+            $booking_id
+        ));
+        
+        error_log('Existe reserva?: ' . ($exists ? 'Sí' : 'No'));
+
+        if (!$exists) {
+            wp_send_json_error('No se encontró la reserva con ID: ' . $booking_id);
+            return;
+        }
+
+        // Si existe, obtener todos los datos
+        $query = $wpdb->prepare("
+            SELECT 
+                b.*,
+                u.display_name as customer_name,
+                l.name as location_name,
+                CONCAT(us.display_name) as staff_name
+            FROM {$wpdb->prefix}menphis_bookings b
+            LEFT JOIN {$wpdb->users} u ON b.customer_id = u.ID
+            LEFT JOIN {$wpdb->prefix}menphis_locations l ON b.location_id = l.id
+            LEFT JOIN {$wpdb->prefix}menphis_staff s ON b.staff_id = s.id
+            LEFT JOIN {$wpdb->users} us ON s.wp_user_id = us.ID
+            WHERE b.id = %d
+        ", $booking_id);
+
+        error_log('Query ejecutada: ' . $query);
+        
+        $booking = $wpdb->get_row($query);
+        error_log('Resultado de la consulta: ' . print_r($booking, true));
         
         if ($booking) {
+            // Formatear fechas para mostrar
+            $booking->booking_date = date('Y-m-d', strtotime($booking->booking_date));
+            $booking->booking_time = date('H:i', strtotime($booking->booking_time));
             wp_send_json_success($booking);
         } else {
-            wp_send_json_error('No se encontró la reserva');
+            wp_send_json_error('Error al obtener los detalles de la reserva');
         }
+        
+        error_log('=== FIN GET_BOOKING_DATA ===');
     }
 
     public function enqueue_admin_scripts() {
@@ -1268,14 +1246,73 @@ class Menphis_Bookings {
             location_id bigint(20) NOT NULL,
             booking_date date NOT NULL,
             booking_time time NOT NULL,
-            duration int(11) NOT NULL,
             status varchar(20) NOT NULL,
             created_at datetime NOT NULL,
-            order_id bigint(20) NOT NULL,
+            order_id bigint(20) DEFAULT NULL,
             PRIMARY KEY (id)
         ) $charset_collate;";
 
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         dbDelta($sql);
+    }
+
+    // Agregar validación antes del checkout
+    public function validate_booking_data() {
+        $booking_data = WC()->session->get('booking_data');
+        
+        if (empty($booking_data)) {
+            return; // Si no hay datos de reserva, podría ser una orden normal
+        }
+
+        // Verificar datos mínimos necesarios
+        if (empty($booking_data['location']) || empty($booking_data['date']) || empty($booking_data['time'])) {
+            wc_add_notice('Por favor complete todos los datos de la reserva', 'error');
+            return;
+        }
+    }
+
+    public function update_booking_status($order_id, $old_status, $new_status) {
+        try {
+            global $wpdb;
+            
+            // Buscar la reserva asociada a esta orden
+            $booking = $wpdb->get_row($wpdb->prepare(
+                "SELECT id FROM {$wpdb->prefix}menphis_bookings WHERE order_id = %d",
+                $order_id
+            ));
+
+            if (!$booking) {
+                return;
+            }
+
+            // Determinar el nuevo estado de la reserva
+            $booking_status = 'pending';
+            if (in_array($new_status, array('completed', 'processing'))) {
+                $booking_status = 'completed';
+            } elseif ($new_status === 'cancelled') {
+                $booking_status = 'cancelled';
+            }
+
+            // Actualizar el estado de la reserva
+            $wpdb->update(
+                $wpdb->prefix . 'menphis_bookings',
+                array('status' => $booking_status),
+                array('id' => $booking->id),
+                array('%s'),
+                array('%d')
+            );
+
+            // Agregar nota a la orden
+            $order = wc_get_order($order_id);
+            if ($order) {
+                $order->add_order_note(sprintf(
+                    'Estado de la reserva actualizado a: %s', 
+                    $booking_status
+                ));
+            }
+
+        } catch (Exception $e) {
+            error_log('Error al actualizar estado de la reserva: ' . $e->getMessage());
+        }
     }
 } 
