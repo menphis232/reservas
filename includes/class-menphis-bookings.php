@@ -55,6 +55,9 @@ class Menphis_Bookings {
 
         // Actualizar estado de la reserva cuando cambia el estado de la orden
         add_action('woocommerce_order_status_changed', array($this, 'update_booking_status'), 10, 3);
+
+        // Agregar endpoint para editar reserva
+        add_action('wp_ajax_edit_booking', array($this, 'ajax_edit_booking'));
     }
 
     public function enqueue_booking_scripts() {
@@ -775,22 +778,25 @@ class Menphis_Bookings {
                 return;
             }
 
-            // Determinar el estado de la reserva basado en el estado de la orden
-            $order_status = $order->get_status();
-            $booking_status = 'pending';
-            
-            // Si la orden está completada o procesando, marcar la reserva como completada
-            if (in_array($order_status, array('completed', 'processing'))) {
-                $booking_status = 'completed';
+            // Obtener servicios del carrito/orden
+            $services = array();
+            foreach ($order->get_items() as $item) {
+                $product_id = $item->get_product_id();
+                if ($this->is_product_service($product_id)) {
+                    $services[] = $product_id;
+                }
             }
 
+            error_log('Servicios encontrados en la orden: ' . print_r($services, true));
+
+            // Insertar la reserva principal
             $data_to_insert = array(
                 'customer_id' => $order->get_customer_id(),
                 'staff_id' => 0,
                 'location_id' => $booking_data['location'],
                 'booking_date' => $booking_data['date'],
                 'booking_time' => $booking_data['time'],
-                'status' => $booking_status, // Usar el estado determinado
+                'status' => 'pending',
                 'created_at' => current_time('mysql'),
                 'order_id' => $order_id
             );
@@ -818,14 +824,30 @@ class Menphis_Bookings {
             $booking_id = $wpdb->insert_id;
             error_log('Reserva creada con ID: ' . $booking_id);
 
-            // Limpiar datos de sesión después de crear la reserva
+            // Insertar los servicios en la tabla intermedia
+            if (!empty($services)) {
+                foreach ($services as $service_id) {
+                    $wpdb->insert(
+                        $wpdb->prefix . 'menphis_booking_services',
+                        array(
+                            'booking_id' => $booking_id,
+                            'service_id' => $service_id
+                        ),
+                        array('%d', '%d')
+                    );
+                }
+            }
+
+            // Limpiar datos de sesión
             WC()->session->set('booking_data', null);
 
-            // Agregar nota con el estado de la reserva
+            // Agregar nota a la orden con los servicios
             $order->add_order_note(sprintf(
-                'Reserva creada exitosamente (ID: %s) con estado: %s', 
+                'Reserva creada exitosamente (ID: %s). Servicios: %s',
                 $booking_id,
-                $booking_status
+                implode(', ', array_map(function($service_id) {
+                    return get_the_title($service_id);
+                }, $services))
             ));
             $order->save();
 
@@ -1251,6 +1273,7 @@ class Menphis_Bookings {
         global $wpdb;
         $charset_collate = $wpdb->get_charset_collate();
 
+        // Tabla principal de reservas
         $sql = "CREATE TABLE IF NOT EXISTS {$wpdb->prefix}menphis_bookings (
             id bigint(20) NOT NULL AUTO_INCREMENT,
             customer_id bigint(20) NOT NULL,
@@ -1262,6 +1285,16 @@ class Menphis_Bookings {
             created_at datetime NOT NULL,
             order_id bigint(20) DEFAULT NULL,
             PRIMARY KEY (id)
+        ) $charset_collate;";
+
+        // Tabla intermedia para servicios
+        $sql .= "CREATE TABLE IF NOT EXISTS {$wpdb->prefix}menphis_booking_services (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            booking_id bigint(20) NOT NULL,
+            service_id bigint(20) NOT NULL,
+            PRIMARY KEY (id),
+            KEY booking_id (booking_id),
+            KEY service_id (service_id)
         ) $charset_collate;";
 
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
@@ -1325,6 +1358,71 @@ class Menphis_Bookings {
 
         } catch (Exception $e) {
             error_log('Error al actualizar estado de la reserva: ' . $e->getMessage());
+        }
+    }
+
+    public function ajax_edit_booking() {
+        try {
+            // Verificar nonce
+            if (!check_ajax_referer('menphis_bookings_nonce', 'nonce', false)) {
+                error_log('Nonce verification failed');
+                wp_send_json_error('Error de seguridad');
+                return;
+            }
+
+            // Verificar permisos
+            if (!current_user_can('manage_options')) {
+                error_log('User does not have permission');
+                wp_send_json_error('No tienes permisos para realizar esta acción');
+                return;
+            }
+
+            $booking_id = isset($_POST['booking_id']) ? intval($_POST['booking_id']) : 0;
+            
+            error_log('=== INICIO EDIT_BOOKING ===');
+            error_log('Booking ID recibido: ' . $booking_id);
+            
+            if (!$booking_id) {
+                wp_send_json_error('ID de reserva no válido');
+                return;
+            }
+
+            global $wpdb;
+            
+            // Obtener los datos actuales de la reserva
+            $booking = $wpdb->get_row($wpdb->prepare("
+                SELECT 
+                    b.*,
+                    u.display_name as customer_name,
+                    l.name as location_name,
+                    CONCAT(us.display_name) as staff_name
+                FROM {$wpdb->prefix}menphis_bookings b
+                LEFT JOIN {$wpdb->users} u ON b.customer_id = u.ID
+                LEFT JOIN {$wpdb->prefix}menphis_locations l ON b.location_id = l.id
+                LEFT JOIN {$wpdb->prefix}menphis_staff s ON b.staff_id = s.id
+                LEFT JOIN {$wpdb->users} us ON s.wp_user_id = us.ID
+                WHERE b.id = %d
+            ", $booking_id));
+
+            if (!$booking) {
+                wp_send_json_error('No se encontró la reserva');
+                return;
+            }
+
+            // Formatear fechas para mostrar
+            $booking->booking_date = date('Y-m-d', strtotime($booking->booking_date));
+            $booking->booking_time = date('H:i', strtotime($booking->booking_time));
+
+            // Obtener datos adicionales necesarios para el formulario
+            $booking->customers = $this->get_customers_list();
+            $booking->locations = $this->get_locations_list();
+            $booking->staff = $this->get_staff_list();
+
+            wp_send_json_success($booking);
+
+        } catch (Exception $e) {
+            error_log('Error en ajax_edit_booking: ' . $e->getMessage());
+            wp_send_json_error('Error al procesar la solicitud');
         }
     }
 } 
