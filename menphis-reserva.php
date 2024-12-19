@@ -112,6 +112,11 @@ class MenphisReserva {
         // Agregar campo de rol en el formulario de registro
         add_action('register_form', array($this, 'add_employee_registration_field'));
         add_action('user_new_form', array($this, 'add_employee_registration_field'));
+
+        // Hooks para el checkout
+        add_action('woocommerce_checkout_before_customer_details', array($this, 'add_account_creation_fields'));
+        add_action('woocommerce_checkout_process', array($this, 'validate_account_creation_fields'));
+        add_action('woocommerce_checkout_create_order', array($this, 'create_customer_on_checkout'), 10, 2);
     }
 
     public function init() {
@@ -1246,6 +1251,89 @@ class MenphisPayPalGateway {
                 )
             );
         }
+    }
+
+    public function add_account_creation_fields() {
+        // Verificar si hay productos de reserva en el carrito
+        $has_booking = false;
+        foreach (WC()->cart->get_cart() as $cart_item) {
+            if (get_post_meta($cart_item['product_id'], '_es_reserva', true) === 'yes') {
+                $has_booking = true;
+                break;
+            }
+        }
+
+        // Solo mostrar el formulario si hay productos de reserva
+        if ($has_booking) {
+            include MENPHIS_RESERVA_PLUGIN_DIR . 'templates/checkout-fields.php';
+        }
+    }
+
+    public function validate_account_creation_fields() {
+        // Solo validar si se marcó crear cuenta y no está logueado
+        if (!is_user_logged_in() && isset($_POST['createaccount']) && $_POST['createaccount']) {
+            if (empty($_POST['account_password'])) {
+                wc_add_notice(__('Por favor ingrese una contraseña', 'menphis-reserva'), 'error');
+            }
+            
+            if ($_POST['account_password'] !== $_POST['account_password_confirm']) {
+                wc_add_notice(__('Las contraseñas no coinciden', 'menphis-reserva'), 'error');
+            }
+        }
+    }
+
+    public function create_customer_on_checkout($order, $data) {
+        // Solo crear cuenta si no está logueado y se marcó la opción
+        if (!is_user_logged_in() && isset($_POST['createaccount']) && $_POST['createaccount']) {
+            $customer_id = $order->get_customer_id();
+            
+            if (!$customer_id) {
+                // Crear el usuario
+                $username = $data['billing_email'];
+                $email = $data['billing_email'];
+                $password = $_POST['account_password'];
+                
+                $customer_id = wc_create_new_customer($email, $username, $password);
+                
+                if (!is_wp_error($customer_id)) {
+                    // Actualizar información adicional del usuario
+                    update_user_meta($customer_id, 'first_name', $data['billing_first_name']);
+                    update_user_meta($customer_id, 'last_name', $data['billing_last_name']);
+                    update_user_meta($customer_id, 'billing_phone', $data['billing_phone']);
+                    
+                    // Asignar el usuario a la orden
+                    $order->set_customer_id($customer_id);
+                    
+                    // Iniciar sesión automáticamente
+                    wc_set_customer_auth_cookie($customer_id);
+                    
+                    // Crear registro en nuestra tabla de clientes
+                    $this->create_customer_record($customer_id, array(
+                        'first_name' => $data['billing_first_name'],
+                        'last_name' => $data['billing_last_name'],
+                        'email' => $email,
+                        'phone' => $data['billing_phone']
+                    ));
+                }
+            }
+        }
+    }
+
+    private function create_customer_record($user_id, $data) {
+        global $wpdb;
+        
+        return $wpdb->insert(
+            $wpdb->prefix . 'menphis_customers',
+            array(
+                'wp_user_id' => $user_id,
+                'first_name' => $data['first_name'],
+                'last_name' => $data['last_name'],
+                'email' => $data['email'],
+                'phone' => isset($data['phone']) ? $data['phone'] : '',
+                'created_at' => current_time('mysql')
+            ),
+            array('%d', '%s', '%s', '%s', '%s', '%s')
+        );
     }
 }
 

@@ -176,4 +176,34 @@ function add_booking_details_to_thankyou($order_id) {
 
     // Limpiar el ID de la sesión
     WC()->session->__unset('booking_id');
-} 
+}
+
+<?php if (!defined('ABSPATH')) exit; ?>
+
+<?php if (!is_user_logged_in()): ?>
+    <div class="woocommerce-account-fields">
+        <h3><?php _e('Información de Cuenta', 'menphis-reserva'); ?></h3>
+        <p class="form-row form-row-wide create-account">
+            <label class="woocommerce-form__label woocommerce-form__label-for-checkbox checkbox">
+                <input class="woocommerce-form__input woocommerce-form__input-checkbox input-checkbox" 
+                       id="createaccount" type="checkbox" name="createaccount" value="1" checked="checked" />
+                <span><?php _e('¿Crear una cuenta?', 'menphis-reserva'); ?></span>
+            </label>
+        </p>
+
+        <div class="create-account-fields" style="display: block;">
+            <p class="form-row form-row-wide">
+                <label for="account_password">
+                    <?php _e('Contraseña', 'menphis-reserva'); ?> <span class="required">*</span>
+                </label>
+                <input type="password" class="input-text" name="account_password" id="account_password" />
+            </p>
+            <p class="form-row form-row-wide">
+                <label for="account_password_confirm">
+                    <?php _e('Confirmar contraseña', 'menphis-reserva'); ?> <span class="required">*</span>
+                </label>
+                <input type="password" class="input-text" name="account_password_confirm" id="account_password_confirm" />
+            </p>
+        </div>
+    </div>
+<?php endif; ?> 
