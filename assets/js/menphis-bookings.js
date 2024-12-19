@@ -406,7 +406,7 @@ jQuery(document).ready(function($) {
                                     <p><strong>Servicios:</strong></p>
                                     <ul class="services-list">
                                         ${(booking.services || []).map(service => `
-                                            <li>${service.name} - ${service.duration} min</li>
+                                            <li>${service.service_name} - ${service.duration} min</li>
                                         `).join('')}
                                     </ul>
                                 </div>
