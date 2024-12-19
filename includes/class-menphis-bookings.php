@@ -782,23 +782,23 @@ class Menphis_Bookings {
             $services = array();
             foreach ($order->get_items() as $item) {
                 $product_id = $item->get_product_id();
-                error_log('Verificando producto ID: ' . $product_id);
+                error_log('Analizando producto del carrito - ID: ' . $product_id);
+                error_log('Nombre del producto: ' . $item->get_name());
                 
-                // Verificar si es un servicio directamente en la tabla de servicios
-                $service = $wpdb->get_row($wpdb->prepare(
-                    "SELECT ID FROM {$wpdb->posts} 
-                    WHERE ID = %d 
-                    AND post_type = 'menphis_service'",
-                    $product_id
-                ));
-
-                if ($service) {
+                if ($this->is_product_service($product_id)) {
                     error_log('Servicio encontrado: ' . $product_id);
-                    $services[] = $product_id;
+                    // Obtener el ID del servicio vinculado o usar el ID del producto si no hay vinculación
+                    $service_id = get_post_meta($product_id, '_linked_service', true);
+                    $service_id_to_use = $service_id ? $service_id : $product_id;
+                    error_log('ID del servicio a usar: ' . $service_id_to_use);
+                    $services[] = $service_id_to_use;
+                } else {
+                    error_log('El producto no es un servicio');
                 }
             }
 
-            error_log('Servicios encontrados en la orden: ' . print_r($services, true));
+            error_log('Total de servicios encontrados: ' . count($services));
+            error_log('Lista de servicios: ' . print_r($services, true));
 
             // Insertar la reserva principal
             $data_to_insert = array(
@@ -828,8 +828,14 @@ class Menphis_Bookings {
 
             // Insertar los servicios en la tabla intermedia
             if (!empty($services)) {
+                error_log('=== INICIO INSERCIÓN DE SERVICIOS ===');
+                error_log('Booking ID: ' . $booking_id);
+                
                 foreach ($services as $service_id) {
-                    error_log('Insertando servicio ' . $service_id . ' para reserva ' . $booking_id);
+                    error_log('Insertando servicio en tabla intermedia:');
+                    error_log('- Booking ID: ' . $booking_id);
+                    error_log('- Service ID: ' . $service_id);
+                    
                     $result = $wpdb->insert(
                         $wpdb->prefix . 'menphis_booking_services',
                         array(
@@ -840,9 +846,23 @@ class Menphis_Bookings {
                     );
                     
                     if ($result === false) {
-                        error_log('Error al insertar servicio: ' . $wpdb->last_error);
+                        error_log('ERROR al insertar servicio:');
+                        error_log('- Error MySQL: ' . $wpdb->last_error);
+                        error_log('- Query ejecutada: ' . $wpdb->last_query);
+                    } else {
+                        error_log('Servicio insertado correctamente - ID: ' . $wpdb->insert_id);
                     }
                 }
+                
+                // Verificar los servicios insertados
+                $inserted_services = $wpdb->get_results($wpdb->prepare(
+                    "SELECT * FROM {$wpdb->prefix}menphis_booking_services WHERE booking_id = %d",
+                    $booking_id
+                ));
+                error_log('Servicios insertados en la tabla intermedia: ' . print_r($inserted_services, true));
+                error_log('=== FIN INSERCIÓN DE SERVICIOS ===');
+            } else {
+                error_log('No hay servicios para insertar en la tabla intermedia');
             }
 
             // Limpiar datos de sesión
@@ -866,6 +886,7 @@ class Menphis_Bookings {
 
         } catch (Exception $e) {
             error_log('ERROR en create_booking_from_order: ' . $e->getMessage());
+            error_log('Stack trace: ' . $e->getTraceAsString());
         }
     }
 
@@ -976,21 +997,50 @@ class Menphis_Bookings {
     }
 
     private function is_product_service($product_id) {
+        error_log('Verificando si el producto ' . $product_id . ' es un servicio');
+        
         $product = wc_get_product($product_id);
         if (!$product) {
+            error_log('Producto no encontrado');
             return false;
         }
 
-        // Verificar si el producto está en la tabla de servicios
-        global $wpdb;
-        $exists = $wpdb->get_var($wpdb->prepare(
-            "SELECT ID FROM {$wpdb->posts} 
-            WHERE ID = %d 
-            AND post_type = 'menphis_service'",
-            $product_id
-        ));
+        // 1. Verificar por meta _linked_service
+        $service_id = get_post_meta($product_id, '_linked_service', true);
+        error_log('Service ID vinculado: ' . $service_id);
+        if ($service_id) {
+            return true;
+        }
 
-        return !empty($exists);
+        // 2. Verificar por categoría
+        $terms = wp_get_post_terms($product_id, 'product_cat');
+        foreach ($terms as $term) {
+            if ($term->slug === 'servicios' || $term->slug === 'services') {
+                error_log('Producto encontrado en categoría de servicios');
+                return true;
+            }
+        }
+
+        // 3. Verificar por título (palabras clave)
+        $title = strtolower($product->get_name());
+        $service_keywords = array('manicura', 'pedicura', 'uñas', 'nails', 'acrigel', 'rusa');
+        
+        foreach ($service_keywords as $keyword) {
+            if (strpos($title, $keyword) !== false) {
+                error_log('Producto identificado como servicio por título: ' . $keyword);
+                return true;
+            }
+        }
+
+        // 4. Verificar por SKU (opcional)
+        $sku = $product->get_sku();
+        if (strpos($sku, 'SRV-') === 0) {
+            error_log('Producto identificado como servicio por SKU');
+            return true;
+        }
+
+        error_log('Producto no es un servicio');
+        return false;
     }
 
     public function process_booking_form() {
