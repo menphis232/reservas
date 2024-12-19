@@ -754,7 +754,7 @@ class Menphis_Bookings {
             error_log('=== INICIO CREATE_BOOKING_FROM_ORDER ===');
             error_log('Order ID: ' . $order_id);
             
-            // Verificar si ya existe una reserva para esta orden
+            // Verificar si ya existe una reserva
             global $wpdb;
             $existing_booking = $wpdb->get_var($wpdb->prepare(
                 "SELECT id FROM {$wpdb->prefix}menphis_bookings WHERE order_id = %d",
@@ -782,7 +782,18 @@ class Menphis_Bookings {
             $services = array();
             foreach ($order->get_items() as $item) {
                 $product_id = $item->get_product_id();
-                if ($this->is_product_service($product_id)) {
+                error_log('Verificando producto ID: ' . $product_id);
+                
+                // Verificar si es un servicio directamente en la tabla de servicios
+                $service = $wpdb->get_row($wpdb->prepare(
+                    "SELECT ID FROM {$wpdb->posts} 
+                    WHERE ID = %d 
+                    AND post_type = 'menphis_service'",
+                    $product_id
+                ));
+
+                if ($service) {
+                    error_log('Servicio encontrado: ' . $product_id);
                     $services[] = $product_id;
                 }
             }
@@ -804,16 +815,7 @@ class Menphis_Bookings {
             $result = $wpdb->insert(
                 $wpdb->prefix . 'menphis_bookings',
                 $data_to_insert,
-                array(
-                    '%d', // customer_id
-                    '%d', // staff_id
-                    '%d', // location_id
-                    '%s', // booking_date
-                    '%s', // booking_time
-                    '%s', // status
-                    '%s', // created_at
-                    '%d'  // order_id
-                )
+                array('%d', '%d', '%d', '%s', '%s', '%s', '%s', '%d')
             );
 
             if ($result === false) {
@@ -827,7 +829,8 @@ class Menphis_Bookings {
             // Insertar los servicios en la tabla intermedia
             if (!empty($services)) {
                 foreach ($services as $service_id) {
-                    $wpdb->insert(
+                    error_log('Insertando servicio ' . $service_id . ' para reserva ' . $booking_id);
+                    $result = $wpdb->insert(
                         $wpdb->prefix . 'menphis_booking_services',
                         array(
                             'booking_id' => $booking_id,
@@ -835,6 +838,10 @@ class Menphis_Bookings {
                         ),
                         array('%d', '%d')
                     );
+                    
+                    if ($result === false) {
+                        error_log('Error al insertar servicio: ' . $wpdb->last_error);
+                    }
                 }
             }
 
@@ -842,12 +849,18 @@ class Menphis_Bookings {
             WC()->session->set('booking_data', null);
 
             // Agregar nota a la orden con los servicios
+            $service_names = array();
+            foreach ($services as $service_id) {
+                $service = get_post($service_id);
+                if ($service) {
+                    $service_names[] = $service->post_title;
+                }
+            }
+
             $order->add_order_note(sprintf(
                 'Reserva creada exitosamente (ID: %s). Servicios: %s',
                 $booking_id,
-                implode(', ', array_map(function($service_id) {
-                    return get_the_title($service_id);
-                }, $services))
+                !empty($service_names) ? implode(', ', $service_names) : 'Ninguno'
             ));
             $order->save();
 
@@ -964,10 +977,20 @@ class Menphis_Bookings {
 
     private function is_product_service($product_id) {
         $product = wc_get_product($product_id);
-        if (!$product) return false;
+        if (!$product) {
+            return false;
+        }
 
-        $service_id = $product->get_meta('_service_id');
-        return !empty($service_id);
+        // Verificar si el producto está en la tabla de servicios
+        global $wpdb;
+        $exists = $wpdb->get_var($wpdb->prepare(
+            "SELECT ID FROM {$wpdb->posts} 
+            WHERE ID = %d 
+            AND post_type = 'menphis_service'",
+            $product_id
+        ));
+
+        return !empty($exists);
     }
 
     public function process_booking_form() {
