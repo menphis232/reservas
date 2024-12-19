@@ -830,3 +830,43 @@
     padding: 0.4rem;
     font-size: 0.85rem;
 }
+
+.user-registration-form {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.user-registration-form h4 {
+    margin-bottom: 15px;
+}
+
+.user-registration-form .description {
+    color: #6c757d;
+    font-size: 0.9em;
+    margin-bottom: 20px;
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+.form-control.is-invalid {
+    border-color: #dc3545;
+}
+
+.invalid-feedback {
+    display: none;
+    color: #dc3545;
+    font-size: 0.875em;
+}
+
+.is-invalid ~ .invalid-feedback {
+    display: block;
+}

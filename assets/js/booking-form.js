@@ -211,4 +211,77 @@ jQuery(document).ready(function($) {
             }
         });
     });
+
+    $('#complete-booking').on('click', function(e) {
+        e.preventDefault();
+        
+        // Validar formulario
+        if (!validateBookingForm()) {
+            return;
+        }
+
+        var bookingData = {
+            // ... otros datos de la reserva ...
+            email: $('#booking_email').val(),
+            password: $('#booking_password').val(),
+            password_confirm: $('#booking_password_confirm').val()
+        };
+
+        // Validar contraseñas si el usuario no está logueado
+        if (!isUserLoggedIn && bookingData.password !== bookingData.password_confirm) {
+            showError('Las contraseñas no coinciden');
+            return;
+        }
+
+        // Enviar datos al servidor
+        $.ajax({
+            url: menphisBooking.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'process_booking',
+                nonce: menphisBooking.nonce,
+                booking_data: bookingData
+            },
+            success: function(response) {
+                if (response.success) {
+                    showSuccess('Reserva creada exitosamente');
+                    // Redirigir a la página de confirmación
+                    window.location.href = menphisBooking.confirmation_url + '?booking_id=' + response.data.booking_id;
+                } else {
+                    showError(response.data.message);
+                }
+            },
+            error: function() {
+                showError('Error al procesar la reserva');
+            }
+        });
+    });
+
+    function validateBookingForm() {
+        var isValid = true;
+        
+        // Validar campos requeridos
+        $('.booking-step-3 input[required]').each(function() {
+            if (!$(this).val()) {
+                isValid = false;
+                $(this).addClass('is-invalid');
+            } else {
+                $(this).removeClass('is-invalid');
+            }
+        });
+
+        if (!isValid) {
+            showError('Por favor complete todos los campos requeridos');
+        }
+
+        return isValid;
+    }
+
+    function showError(message) {
+        // Implementar mostrar mensaje de error
+    }
+
+    function showSuccess(message) {
+        // Implementar mostrar mensaje de éxito
+    }
 });
