@@ -1215,5 +1215,36 @@ function menphis_reserva() {
     return $menphis_reserva;
 }
 
+// Agregar campos en la pestaña general del producto
+add_action('woocommerce_product_options_general_product_data', 'agregar_campo_reserva');
+function agregar_campo_reserva() {
+    woocommerce_wp_checkbox(array(
+        'id'            => '_es_reserva',
+        'label'         => __('¿Es producto de reserva?', 'woocommerce'),
+        'description'   => __('Marcar si este producto requiere reserva', 'woocommerce')
+    ));
+}
+
+// Guardar el valor del checkbox
+add_action('woocommerce_process_product_meta', 'guardar_campo_reserva');
+function guardar_campo_reserva($post_id) {
+    $es_reserva = isset($_POST['_es_reserva']) ? 'yes' : 'no';
+    update_post_meta($post_id, '_es_reserva', $es_reserva);
+}
+
+// Modificar comportamiento al agregar al carrito
+add_filter('woocommerce_add_to_cart_validation', 'validar_producto_reserva', 10, 3);
+function validar_producto_reserva($passed, $product_id, $quantity) {
+    $es_reserva = get_post_meta($product_id, '_es_reserva', true);
+    
+    if ($es_reserva === 'yes') {
+        WC()->session->set('producto_reserva_' . $product_id, true);
+    } else {
+        WC()->session->__unset('producto_reserva_' . $product_id);
+    }
+    
+    return $passed;
+}
+
 // Inicializar solo una vez
 add_action('plugins_loaded', 'menphis_reserva'); 
