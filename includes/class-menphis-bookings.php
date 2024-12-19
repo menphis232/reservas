@@ -1288,6 +1288,7 @@ class Menphis_Bookings {
 
             global $wpdb;
             
+            // Obtener datos de la reserva
             $query = $wpdb->prepare("
                 SELECT 
                     b.*,
@@ -1302,15 +1303,27 @@ class Menphis_Bookings {
                 WHERE b.id = %d
             ", $booking_id);
 
-            error_log('Query ejecutada: ' . $query);
-            
             $booking = $wpdb->get_row($query);
-            error_log('Resultado de la consulta: ' . print_r($booking, true));
             
             if ($booking) {
                 // Formatear fechas para mostrar
                 $booking->booking_date = date('Y-m-d', strtotime($booking->booking_date));
                 $booking->booking_time = date('H:i', strtotime($booking->booking_time));
+
+                // Obtener servicios asociados
+                $services_query = $wpdb->prepare("
+                    SELECT 
+                        s.*,
+                        p.post_title as service_name
+                    FROM {$wpdb->prefix}menphis_booking_services s
+                    LEFT JOIN {$wpdb->posts} p ON s.service_id = p.ID
+                    WHERE s.booking_id = %d
+                ", $booking_id);
+
+                $booking->services = $wpdb->get_results($services_query);
+                
+                error_log('Servicios encontrados: ' . print_r($booking->services, true));
+
                 wp_send_json_success($booking);
             } else {
                 wp_send_json_error('No se encontró la reserva');
