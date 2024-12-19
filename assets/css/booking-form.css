@@ -1,0 +1,832 @@
+/* Reset y aislamiento de estilos */
+.menphis-booking-wrapper {
+    all: initial;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.menphis-booking-wrapper * {
+    all: revert;
+    box-sizing: border-box;
+}
+
+/* Stepper */
+.stepper {
+    background: #fff;
+    border-radius: 4px;
+    box-shadow: 0 2px 2px 0 rgba(0,0,0,0.14);
+    padding: 20px;
+}
+
+.stepper .step {
+    position: relative;
+    padding: 20px;
+}
+
+.stepper .step:not(:last-child):after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    border-top: 1px solid #e0e0e0;
+    z-index: 1;
+}
+
+.stepper .step-title {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1rem;
+    position: relative;
+    z-index: 2;
+    background: white;
+    padding: 0 10px;
+    width: fit-content;
+}
+
+.stepper .step-title i {
+    margin-right: 8px;
+    background: #9e9e9e;
+    color: white;
+    border-radius: 50%;
+    padding: 8px;
+}
+
+.stepper .step.active .step-title i {
+    background: #26a69a;
+}
+
+.stepper .step.done .step-title i {
+    background: #4CAF50;
+}
+
+/* Input fields */
+.input-field {
+    position: relative;
+    margin-top: 1.5rem;
+}
+
+.input-field .prefix {
+    position: absolute;
+    left: 0;
+    top: 0.5rem;
+    color: #9e9e9e;
+    font-size: 1.5rem;
+    transition: color .2s;
+}
+
+.input-field .prefix ~ input {
+    margin-left: 3rem;
+    width: calc(100% - 3rem);
+}
+
+.input-field input {
+    background-color: transparent;
+    border: none;
+    border-bottom: 1px solid #9e9e9e;
+    border-radius: 0;
+    outline: none;
+    height: 3rem;
+    width: 100%;
+    font-size: 16px;
+    padding: 0;
+    box-shadow: none;
+    box-sizing: border-box;
+    transition: border .3s, box-shadow .3s;
+}
+
+.input-field input:focus {
+    border-bottom: 1px solid #26a69a;
+    box-shadow: 0 1px 0 0 #26a69a;
+}
+
+.input-field input:focus + label,
+.input-field input:not(:placeholder-shown) + label {
+    transform: translateY(-14px) scale(0.8);
+    transform-origin: 0 0;
+    color: #26a69a;
+}
+
+.input-field label {
+    color: #9e9e9e;
+    position: absolute;
+    top: 0.8rem;
+    left: 3rem;
+    font-size: 1rem;
+    cursor: text;
+    transition: transform .2s ease-out, color .2s ease-out;
+    transform-origin: 0% 100%;
+    text-align: initial;
+    transform: translateY(12px);
+}
+
+/* Datepicker y Timepicker */
+.datepicker-modal,
+.timepicker-modal {
+    max-width: 325px;
+    max-height: none;
+    border-radius: 4px;
+}
+
+.datepicker-date-display {
+    background-color: #26a69a;
+}
+
+.datepicker-table td.selected {
+    background-color: #26a69a;
+    color: #fff;
+}
+
+.datepicker-cancel, 
+.datepicker-clear, 
+.datepicker-today, 
+.datepicker-done,
+.timepicker-close {
+    color: #26a69a;
+}
+
+/* Botones */
+.btn {
+    background-color: #26a69a;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 0 16px;
+    text-transform: uppercase;
+    height: 36px;
+    line-height: 36px;
+    cursor: pointer;
+    transition: background-color .2s;
+}
+
+.btn:hover {
+    background-color: #2bbbad;
+}
+
+.btn-flat {
+    background-color: transparent;
+    color: #26a69a;
+    box-shadow: none;
+}
+
+.btn-flat:hover {
+    background-color: rgba(0,0,0,0.1);
+}
+
+/* Select */
+.select-wrapper input.select-dropdown {
+    border: 1px solid #9e9e9e;
+    border-radius: 4px;
+    padding: 0 10px;
+    height: 3rem;
+    line-height: 3rem;
+}
+
+.select-wrapper input.select-dropdown:focus {
+    border-color: #26a69a;
+}
+
+.dropdown-content li > a, 
+.dropdown-content li > span {
+    color: #26a69a;
+}
+
+/* Servicios */
+.service-item {
+    margin-bottom: 1rem;
+}
+
+.service-meta {
+    display: flex;
+    gap: 1rem;
+    margin-top: 0.5rem;
+}
+
+/* Time slots grid */
+.time-slots-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.time-slot {
+    text-align: center;
+}
+
+.time-slot label {
+    display: block;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.time-slot input[type="radio"]:checked + span {
+    color: #26a69a;
+    font-weight: bold;
+}
+
+/* Icons */
+.material-icons {
+    font-family: 'Material Icons';
+    font-weight: normal;
+    font-style: normal;
+    font-size: 24px;
+    display: inline-block;
+    line-height: 1;
+    text-transform: none;
+    letter-spacing: normal;
+    word-wrap: normal;
+    white-space: nowrap;
+    direction: ltr;
+    vertical-align: middle;
+}
+
+/* Stepper Horizontal */
+.stepper.horizontal {
+    min-height: 568px;
+    position: relative;
+    display: flex;
+    justify-content: space-between;
+    background-color: white;
+    border-radius: 4px;
+    box-shadow: 0 2px 2px 0 rgba(0,0,0,0.14), 0 3px 1px -2px rgba(0,0,0,0.12), 0 1px 5px 0 rgba(0,0,0,0.2);
+}
+
+.stepper .step {
+    position: relative;
+    flex: 1;
+}
+
+.stepper .step-title {
+    padding: 24px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.stepper .step.active .step-title {
+    background-color: #26a69a;
+    color: white;
+}
+
+.stepper .step-content {
+    padding: 24px;
+}
+
+/* Card styles */
+.card {
+    margin: 1rem 0;
+}
+
+.card .card-content {
+    padding: 24px;
+}
+
+/* Datepicker y Timepicker */
+.datepicker-modal,
+.timepicker-modal {
+    max-width: 325px !important;
+}
+
+.datepicker-date-display {
+    background-color: #2196f3 !important;
+}
+
+.datepicker-table td.selected {
+    background-color: #2196f3 !important;
+}
+
+.datepicker-cancel, 
+.datepicker-clear, 
+.datepicker-today, 
+.datepicker-done {
+    color: #2196f3 !important;
+}
+
+.timepicker-digital-display {
+    background-color: #2196f3 !important;
+}
+
+/* Input fields */
+.input-field .prefix {
+    color: #9e9e9e;
+}
+
+.input-field .prefix.active {
+    color: #2196f3;
+}
+
+/* Estilos para las cards de servicios */
+.service-item.card {
+    margin: 1rem 0;
+    border-radius: 4px;
+    box-shadow: 0 2px 2px 0 rgba(0,0,0,0.14);
+}
+
+.service-item .card-content {
+    padding: 24px;
+}
+
+.service-meta {
+    display: flex;
+    gap: 16px;
+    margin-top: 12px;
+}
+
+.service-meta span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: #757575;
+}
+
+.service-meta i {
+    font-size: 18px;
+}
+
+/* Flatpickr customization */
+.flatpickr-calendar {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 3px 13px rgba(0,0,0,0.08);
+    width: 307.875px;
+}
+
+.flatpickr-day.selected {
+    background: #26a69a !important;
+    border-color: #26a69a !important;
+}
+
+.flatpickr-day.today {
+    border-color: #26a69a;
+}
+
+.flatpickr-day:hover {
+    background: #e6e6e6;
+}
+
+.flatpickr-current-month {
+    font-size: 1.2em;
+    padding: 10px 0;
+}
+
+.flatpickr-time {
+    border-top: 1px solid #e6e6e6;
+}
+
+.flatpickr-time input:hover,
+.flatpickr-time input:focus {
+    background: #26a69a;
+    color: white;
+}
+
+/* Input fields customization */
+.input-field {
+    position: relative;
+    margin: 1rem 0;
+}
+
+.input-field input[type="text"] {
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 0.5rem 1rem 0.5rem 3rem;
+    height: 3rem;
+    width: 100%;
+    box-sizing: border-box;
+    font-size: 16px;
+}
+
+.input-field input[type="text"]:focus {
+    border-color: #26a69a;
+    box-shadow: 0 1px 0 0 #26a69a;
+    outline: none;
+}
+
+.input-field .prefix {
+    position: absolute;
+    left: 0.75rem;
+    top: 0.75rem;
+    color: #9e9e9e;
+    font-size: 1.5rem;
+}
+
+.input-field input:focus + .prefix {
+    color: #26a69a;
+}
+
+/* Placeholder text */
+.input-field input::placeholder {
+    color: #9e9e9e;
+}
+
+.booking-stepper {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    padding: 2rem;
+}
+
+.steps {
+    position: relative;
+}
+
+.step {
+    display: none;
+    position: relative;
+    padding: 1rem 0;
+}
+
+.step.active {
+    display: block;
+}
+
+.step-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    font-size: 1.25rem;
+    font-weight: 500;
+}
+
+.step-title i {
+    font-size: 1.5rem;
+}
+
+.step-content {
+    padding: 1rem 0;
+}
+
+.step-actions {
+    margin-top: 2rem;
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+}
+
+.service-meta {
+    display: flex;
+    gap: 1rem;
+    margin-top: 0.5rem;
+    color: #6c757d;
+}
+
+.service-meta i {
+    margin-right: 0.25rem;
+}
+
+/* Input groups */
+.input-group-text {
+    background-color: #f8f9fa;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .booking-stepper {
+        padding: 1rem;
+    }
+    
+    .step-actions {
+        flex-direction: column;
+    }
+    
+    .step-actions .btn {
+        width: 100%;
+    }
+}
+
+/* Stepper Styles */
+.bs-stepper {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    padding: 2rem;
+}
+
+.bs-stepper-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 2rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.bs-stepper-line {
+    flex: 1;
+    height: 2px;
+    background: #e9ecef;
+    margin: 0 1rem;
+}
+
+.step {
+    text-align: center;
+    z-index: 1;
+}
+
+.step.done .bs-stepper-line {
+    background: #198754;
+}
+
+.step-trigger {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    border: none;
+    background: transparent;
+    padding: 0;
+    cursor: default;
+    text-decoration: none;
+}
+
+.bs-stepper-circle {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    background: #e9ecef;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    color: #6c757d;
+    transition: all 0.2s ease-in-out;
+}
+
+.step.active .bs-stepper-circle {
+    background: #0d6efd;
+    color: white;
+}
+
+.step.done .bs-stepper-circle {
+    background: #198754;
+    color: white;
+}
+
+.bs-stepper-label {
+    font-weight: 500;
+    color: #6c757d;
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.step.active .bs-stepper-label {
+    color: #0d6efd;
+}
+
+.step.done .bs-stepper-label {
+    color: #198754;
+}
+
+.step-content {
+    display: none;
+    padding: 1rem 0;
+}
+
+.step-content.active {
+    display: block;
+}
+
+/* Service Items */
+.service-item .card-body {
+    padding: 1.25rem;
+}
+
+.service-meta {
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .bs-stepper {
+        padding: 1rem;
+    }
+
+    .bs-stepper-header {
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .bs-stepper-line {
+        width: 2px;
+        height: 1.5rem;
+        margin: 0;
+    }
+
+    .step-trigger {
+        flex-direction: row;
+        gap: 1rem;
+    }
+
+    .bs-stepper-label {
+        margin-top: 0;
+    }
+}
+
+/* Form Controls */
+.form-control:focus,
+.form-select:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.input-group-text {
+    background-color: #f8f9fa;
+}
+
+/* Buttons */
+.btn {
+    padding: 0.5rem 1rem;
+    font-weight: 500;
+}
+
+.btn-primary {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.btn-primary:hover {
+    background-color: #0b5ed7;
+    border-color: #0a58ca;
+}
+
+.btn-success {
+    background-color: #198754;
+    border-color: #198754;
+}
+
+.btn-success:hover {
+    background-color: #157347;
+    border-color: #146c43;
+}
+
+/* Mejorar inputs de fecha y hora */
+.input-group-lg > .form-control,
+.input-group-lg > .input-group-text {
+    height: 3rem;
+    font-size: 1rem;
+}
+
+.form-select-lg {
+    height: 3rem;
+    font-size: 1rem;
+}
+
+/* Estilos para el resumen de la reserva */
+.booking-summary {
+    font-size: 1rem;
+}
+
+.booking-summary .card-title {
+    color: #333;
+    font-weight: 600;
+}
+
+.booking-details {
+    background-color: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+}
+
+.total-section {
+    background-color: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+    margin-top: 1.5rem;
+}
+
+.total-section h4 {
+    color: #198754;
+    font-weight: 600;
+}
+
+/* Calendario y horarios */
+.calendar-wrapper {
+    background: #fff;
+    border-radius: 8px;
+    padding: 1rem;
+    box-shadow: 0 0 10px rgba(0,0,0,0.05);
+}
+
+.time-slots {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.4rem;
+    max-height: 350px;
+    overflow-y: auto;
+    padding: 0.5rem;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.05);
+}
+
+.time-slot {
+    width: 100%;
+}
+
+.time-slot .btn {
+    width: 100%;
+    padding: 0.35rem 0.5rem;
+    font-size: 0.85rem;
+    border: 1px solid #dee2e6;
+    transition: all 0.2s ease;
+}
+
+.time-slot .btn:hover {
+    background-color: #f8f9fa;
+}
+
+.time-slot .btn-check:checked + .btn-outline-primary {
+    background-color: #0d6efd;
+    color: white;
+    border-color: #0d6efd;
+}
+
+/* Personalización del calendario */
+.ui-datepicker {
+    width: 100%;
+    padding: 0;
+    border: none;
+}
+
+.ui-datepicker table {
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+.ui-datepicker th {
+    padding: 0.5rem;
+    background: #f8f9fa;
+    border: none;
+    font-weight: 500;
+}
+
+.ui-datepicker td {
+    padding: 2px;
+    border: none;
+}
+
+.ui-datepicker td span, 
+.ui-datepicker td a {
+    text-align: center;
+    padding: 0.5rem;
+    border-radius: 4px;
+}
+
+.ui-datepicker td a.ui-state-default {
+    background: #fff;
+    border: 1px solid #dee2e6;
+}
+
+.ui-datepicker td a.ui-state-active {
+    background: #0d6efd;
+    color: white;
+    border-color: #0d6efd;
+}
+
+.ui-datepicker td a.ui-state-highlight {
+    background: #e9ecef;
+}
+
+.ui-datepicker .ui-datepicker-header {
+    background: #fff;
+    border: none;
+    padding: 0.5rem;
+    font-weight: 500;
+}
+
+.ui-datepicker .ui-datepicker-prev,
+.ui-datepicker .ui-datepicker-next {
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    background: none;
+    border: none;
+}
+
+/* Scrollbar personalizado para los horarios */
+.time-slots::-webkit-scrollbar {
+    width: 6px;
+}
+
+.time-slots::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.time-slots::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+.time-slots::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* Hacer el calendario un poco más compacto */
+.ui-datepicker td a {
+    padding: 0.4rem;
+    font-size: 0.85rem;
+}

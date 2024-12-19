@@ -1,0 +1,21 @@
+.menphis-booking-form {
+    max-width: 800px;
+    margin: 0 auto;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+}
+
+.menphis-service-item {
+    padding: 20px;
+    margin-bottom: 15px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.menphis-service-item:hover {
+    background-color: #f8f9fa;
+    border-color: #007bff;
+}
+
+/* Más estilos similares a Bookly... */ 
