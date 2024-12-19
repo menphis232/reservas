@@ -1327,4 +1327,101 @@ class Menphis_Bookings {
             error_log('Error al actualizar estado de la reserva: ' . $e->getMessage());
         }
     }
+
+    public function process_booking() {
+        check_ajax_referer('menphis_booking_nonce', 'nonce');
+
+        try {
+            global $wpdb;
+            $wpdb->query('START TRANSACTION');
+
+            $booking_data = isset($_POST['booking_data']) ? $_POST['booking_data'] : array();
+            
+            // Si no hay usuario logueado, crear uno nuevo
+            if (!is_user_logged_in()) {
+                $user_id = $this->create_customer_account($booking_data);
+                if (is_wp_error($user_id)) {
+                    throw new Exception($user_id->get_error_message());
+                }
+            } else {
+                $user_id = get_current_user_id();
+            }
+
+            // Crear la reserva
+            $booking_id = $this->create_booking($booking_data, $user_id);
+            
+            if (!$booking_id) {
+                throw new Exception(__('Error al crear la reserva', 'menphis-reserva'));
+            }
+
+            $wpdb->query('COMMIT');
+            
+            wp_send_json_success(array(
+                'booking_id' => $booking_id,
+                'message' => __('Reserva creada exitosamente', 'menphis-reserva')
+            ));
+
+        } catch (Exception $e) {
+            $wpdb->query('ROLLBACK');
+            wp_send_json_error(array(
+                'message' => $e->getMessage()
+            ));
+        }
+    }
+
+    private function create_customer_account($booking_data) {
+        // Validar datos requeridos
+        if (empty($booking_data['email']) || empty($booking_data['password'])) {
+            throw new Exception(__('Email y contraseña son requeridos', 'menphis-reserva'));
+        }
+
+        // Verificar si el email ya existe
+        if (email_exists($booking_data['email'])) {
+            throw new Exception(__('Este email ya está registrado', 'menphis-reserva'));
+        }
+
+        // Crear el usuario
+        $user_data = array(
+            'user_login' => $booking_data['email'],
+            'user_email' => $booking_data['email'],
+            'user_pass'  => $booking_data['password'],
+            'role'       => 'customer'
+        );
+
+        $user_id = wp_insert_user($user_data);
+
+        if (is_wp_error($user_id)) {
+            throw new Exception($user_id->get_error_message());
+        }
+
+        // Iniciar sesión automáticamente
+        wp_set_current_user($user_id);
+        wp_set_auth_cookie($user_id);
+
+        // Crear cliente en nuestra tabla personalizada
+        $this->create_customer_record($user_id, $booking_data);
+
+        return $user_id;
+    }
+
+    private function create_customer_record($user_id, $booking_data) {
+        global $wpdb;
+
+        $customer_data = array(
+            'wp_user_id'  => $user_id,
+            'first_name'  => isset($booking_data['first_name']) ? $booking_data['first_name'] : '',
+            'last_name'   => isset($booking_data['last_name']) ? $booking_data['last_name'] : '',
+            'email'       => $booking_data['email'],
+            'phone'       => isset($booking_data['phone']) ? $booking_data['phone'] : '',
+            'created_at'  => current_time('mysql')
+        );
+
+        $wpdb->insert(
+            $wpdb->prefix . 'menphis_customers',
+            $customer_data,
+            array('%d', '%s', '%s', '%s', '%s', '%s')
+        );
+
+        return $wpdb->insert_id;
+    }
 } 
