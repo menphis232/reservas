@@ -5,6 +5,24 @@ if (!defined('ABSPATH')) {
 ?>
 
 <div class="wrap menphis-employee-dashboard">
+    <?php if (current_user_can('administrator')): ?>
+        <div class="notice notice-info">
+            <p>
+                <?php 
+                if ($this->employee_id) {
+                    $employee = get_userdata($this->employee_id);
+                    printf(
+                        __('Viendo reservas de: %s', 'menphis-reserva'),
+                        esc_html($employee->display_name)
+                    );
+                } else {
+                    _e('Viendo todas las reservas', 'menphis-reserva');
+                }
+                ?>
+            </p>
+        </div>
+    <?php endif; ?>
+
     <h1><?php _e('Mi Panel de Reservas', 'menphis-reserva'); ?></h1>
 
     <div class="employee-stats card">

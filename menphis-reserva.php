@@ -105,6 +105,13 @@ class MenphisReserva {
         // Inicializar clases
         new Menphis_Employee_Dashboard();
         new Menphis_Shortcodes();
+
+        // Agregar rol de empleado al crear usuario
+        add_action('user_register', array($this, 'assign_employee_role'));
+        
+        // Agregar campo de rol en el formulario de registro
+        add_action('register_form', array($this, 'add_employee_registration_field'));
+        add_action('user_new_form', array($this, 'add_employee_registration_field'));
     }
 
     public function init() {
@@ -1205,6 +1212,40 @@ class MenphisPayPalGateway {
             });
         </script>
         <?php
+    }
+
+    public function add_employee_registration_field() {
+        ?>
+        <p>
+            <label>
+                <input type="checkbox" name="is_menphis_employee" value="1">
+                <?php _e('Registrar como empleado de Menphis', 'menphis-reserva'); ?>
+            </label>
+        </p>
+        <?php
+    }
+
+    public function assign_employee_role($user_id) {
+        // Verificar si se marcó el checkbox de empleado
+        if (isset($_POST['is_menphis_employee'])) {
+            $user = new WP_User($user_id);
+            
+            // Agregar el rol de empleado
+            $user->add_role('menphis_employee');
+            
+            // Notificar al admin
+            $admin_email = get_option('admin_email');
+            $user_info = get_userdata($user_id);
+            
+            wp_mail(
+                $admin_email,
+                'Nuevo empleado registrado',
+                sprintf(
+                    'El usuario %s se ha registrado como empleado.',
+                    $user_info->display_name
+                )
+            );
+        }
     }
 }
 
