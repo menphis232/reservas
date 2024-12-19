@@ -97,6 +97,14 @@ class MenphisReserva {
 
         // Agregar script de verificación en el head
         add_action('wp_head', array($this, 'add_materialize_check'));
+
+        // Cargar clase del panel de empleados
+        require_once MENPHIS_RESERVA_PLUGIN_DIR . 'includes/class-menphis-employee-dashboard.php';
+        require_once MENPHIS_RESERVA_PLUGIN_DIR . 'includes/class-menphis-shortcodes.php';
+        
+        // Inicializar clases
+        new Menphis_Employee_Dashboard();
+        new Menphis_Shortcodes();
     }
 
     public function init() {
