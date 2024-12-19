@@ -1,0 +1,29 @@
+.create-account-fields {
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    margin-top: 10px;
+}
+
+.create-account-fields .form-row {
+    margin-bottom: 15px;
+}
+
+.create-account-fields label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+}
+
+.create-account-fields input[type="password"] {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.create-account-fields input[type="password"]:focus {
+    border-color: #2196F3;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.25);
+} 
