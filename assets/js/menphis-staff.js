@@ -158,7 +158,6 @@ jQuery(document).ready(function($) {
     // Manejar clic en botón editar
     $(document).on('click', '.edit-staff', function(e) {
         e.preventDefault();
-        console.log('Clic en editar staff:', $(this).data('id'));
         var staffId = $(this).data('id');
         
         $.ajax({
@@ -170,32 +169,33 @@ jQuery(document).ready(function($) {
                 id: staffId
             },
             success: function(response) {
-                console.log('Respuesta get_staff:', response); // Debug
                 if (response.success) {
                     var staff = response.data;
                     
                     // Llenar el formulario con los datos
-                    $('#staff_id').val(staff.id);
-                    $('#staff_name').val(staff.name);
-                    $('#staff_email').val(staff.email);
-                    $('#staff_phone').val(staff.phone);
+                    $('#employee_id').val(staff.id);
+                    $('#employee_name').val(staff.name);
+                    $('#employee_email').val(staff.email);
+                    $('#employee_phone').val(staff.phone);
                     
                     // Actualizar selects múltiples
                     if (staff.services) {
-                        $('#staff_services').val(staff.services).trigger('change');
+                        $('#employeeServices').val(staff.services);
+                        M.FormSelect.init(document.getElementById('employeeServices'));
                     }
                     if (staff.locations) {
-                        $('#staff_locations').val(staff.locations).trigger('change');
+                        $('#employeeLocations').val(staff.locations);
+                        M.FormSelect.init(document.getElementById('employeeLocations'));
                     }
                     
                     // Actualizar labels
                     M.updateTextFields();
                     
                     // Cambiar título del modal
-                    $('#modal-new-staff h4').text('Editar Empleado');
+                    $('#modalTitle').text('Editar Empleado');
                     
                     // Abrir modal
-                    var modal = M.Modal.getInstance($('#modal-new-staff'));
+                    var modal = M.Modal.getInstance(document.getElementById('employeeModal'));
                     modal.open();
                 } else {
                     M.toast({html: 'Error: ' + (response.data || 'Error al cargar empleado')});
@@ -400,4 +400,99 @@ jQuery(document).ready(function($) {
             });
         });
     }
+
+    // Funciones para manejar los modales
+    function openCreateModal() {
+        const modalTitle = document.getElementById('modalTitle');
+        const form = document.getElementById('employeeForm');
+        
+        modalTitle.textContent = 'Crear Empleado';
+        form.reset();
+        
+        // Limpiar campos ocultos si existen
+        if(form.querySelector('input[name="employee_id"]')) {
+            form.querySelector('input[name="employee_id"]').value = '';
+        }
+        
+        // Reinicializar selects
+        if(window.M) {
+            M.FormSelect.init(document.getElementById('employeeServices'));
+            M.FormSelect.init(document.getElementById('employeeLocations'));
+        }
+        
+        // Abrir modal
+        const modalInstance = M.Modal.getInstance(document.getElementById('employeeModal'));
+        modalInstance.open();
+    }
+
+    function openEditModal(employeeData) {
+        const modalTitle = document.getElementById('modalTitle');
+        const form = document.getElementById('employeeForm');
+        
+        modalTitle.textContent = 'Editar Empleado';
+        
+        // Rellenar datos del empleado
+        Object.keys(employeeData).forEach(key => {
+            const input = form.querySelector(`[name="${key}"]`);
+            if(input) {
+                input.value = employeeData[key];
+            }
+        });
+        
+        // Reinicializar selects
+        if(window.M) {
+            M.FormSelect.init(document.getElementById('employeeServices'));
+            M.FormSelect.init(document.getElementById('employeeLocations'));
+        }
+        
+        // Abrir modal
+        const modalInstance = M.Modal.getInstance(document.getElementById('employeeModal'));
+        modalInstance.open();
+    }
+
+    // Actualizar el manejador del formulario
+    $('#employeeForm').on('submit', function(e) {
+        e.preventDefault();
+        
+        var employeeId = $('#employee_id').val();
+        var isEdit = employeeId !== '';
+        
+        var formData = new FormData(this);
+        formData.append('action', isEdit ? 'update_staff' : 'add_staff');
+        formData.append('nonce', menphisStaff.nonce);
+        
+        if (isEdit) {
+            formData.append('id', employeeId);
+        }
+
+        $.ajax({
+            url: menphisStaff.ajax_url,
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(response) {
+                if (response.success) {
+                    M.toast({html: response.data.message || 'Empleado guardado correctamente'});
+                    var modal = M.Modal.getInstance(document.getElementById('employeeModal'));
+                    modal.close();
+                    loadStaffTable();
+                    
+                    // Limpiar formulario
+                    $('#employeeForm')[0].reset();
+                    $('#employee_id').val('');
+                    $('#employeeServices').val(null);
+                    $('#employeeLocations').val(null);
+                    M.FormSelect.init(document.getElementById('employeeServices'));
+                    M.FormSelect.init(document.getElementById('employeeLocations'));
+                } else {
+                    M.toast({html: 'Error: ' + (response.data || 'Error desconocido')});
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Error en la petición:', {xhr, status, error});
+                M.toast({html: 'Error al guardar: ' + error});
+            }
+        });
+    });
 }); 

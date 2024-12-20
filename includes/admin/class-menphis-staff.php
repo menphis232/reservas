@@ -123,23 +123,31 @@ class MenphisStaff {
     }
 
     public function get_services() {
-        // Obtener servicios de WooCommerce con meta _is_service = 'yes'
+        // Obtener servicios que son productos WooCommerce marcados como servicios
         $args = array(
             'post_type' => 'product',
             'posts_per_page' => -1,
             'meta_query' => array(
                 array(
                     'key' => '_is_service',
-                    'value' => 'yes',
-                    'compare' => '='
+                    'value' => 'yes'
                 )
             )
         );
+        
         return get_posts($args);
     }
 
     public function get_locations() {
-        return $this->db->get_results("SELECT * FROM {$this->db->prefix}menphis_locations WHERE status = 'active'");
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'menphis_locations';
+        
+        // Verificar si la tabla existe
+        if($wpdb->get_var("SHOW TABLES LIKE '$table_name'") != $table_name) {
+            return array();
+        }
+        
+        return $wpdb->get_results("SELECT * FROM $table_name WHERE status = 'active'");
     }
 
     // Métodos AJAX
@@ -205,11 +213,15 @@ class MenphisStaff {
             wp_die(__('No tienes permisos suficientes para acceder a esta página.'));
         }
 
-        // Obtener servicios y ubicaciones antes de cargar la vista
+        // Obtener datos necesarios
         $services = $this->get_services();
         $locations = $this->get_locations();
         
-        // Incluir la vista pasando las variables necesarias
+        // Debug
+        error_log('Servicios encontrados: ' . count($services));
+        error_log('Ubicaciones encontradas: ' . count($locations));
+        
+        // Incluir la vista
         include MENPHIS_RESERVA_PLUGIN_DIR . 'includes/admin/views/staff.php';
     }
 

@@ -24,7 +24,7 @@ $staff = $menphis_reserva->staff;
                     <div class="card-content">
                         <div class="row">
                             <div class="col s12">
-                                <a class="btn waves-effect waves-light blue right modal-trigger" href="#modal-new-staff">
+                                <a class="btn waves-effect waves-light blue right modal-trigger" href="#employeeModal">
                                     <i class="material-icons left">person_add</i>
                                     Nuevo Empleado
                                 </a>
@@ -65,56 +65,59 @@ $staff = $menphis_reserva->staff;
 </div>
 
 <!-- Modal Nuevo Empleado -->
-<div id="modal-new-staff" class="modal">
+<div id="employeeModal" class="modal">
     <div class="modal-content">
-        <h4>Nuevo Empleado</h4>
+        <h4 id="modalTitle">Nuevo Empleado</h4>
         <div class="row">
-            <form class="col s12" id="staff-form">
-                <input type="hidden" id="staff_id" name="staff_id" value="">
+            <form class="col s12" id="employeeForm">
+                <input type="hidden" id="employee_id" name="employee_id" value="">
+                
+                <!-- Campos de información básica -->
                 <div class="row">
                     <div class="input-field col s12 m6">
                         <i class="material-icons prefix">person</i>
-                        <input id="staff_name" name="staff_name" type="text" class="validate" required>
-                        <label for="staff_name">Nombre Completo</label>
+                        <input id="employee_name" name="name" type="text" class="validate" required>
+                        <label for="employee_name">Nombre Completo</label>
                     </div>
                     <div class="input-field col s12 m6">
                         <i class="material-icons prefix">email</i>
-                        <input id="staff_email" name="staff_email" type="email" class="validate" required>
-                        <label for="staff_email">Email</label>
+                        <input id="employee_email" name="email" type="email" class="validate" required>
+                        <label for="employee_email">Email</label>
                     </div>
                 </div>
+
                 <div class="row">
                     <div class="input-field col s12 m6">
                         <i class="material-icons prefix">phone</i>
-                        <input id="staff_phone" name="staff_phone" type="tel" class="validate">
-                        <label for="staff_phone">Teléfono</label>
+                        <input id="employee_phone" name="phone" type="tel" class="validate">
+                        <label for="employee_phone">Teléfono</label>
                     </div>
+                </div>
+
+                <!-- Servicios y Ubicaciones -->
+                <div class="row">
                     <div class="input-field col s12 m6">
                         <i class="material-icons prefix">content_cut</i>
-                        <select id="staff_services" name="staff_services[]" multiple class="select2" data-placeholder="Seleccionar servicios">
-                            <option value="">Seleccionar servicios</option>
-                            <?php
-                            if (!empty($services)) {
-                                foreach($services as $service) {
-                                    echo '<option value="'.esc_attr($service->ID).'">'.esc_html($service->post_title).'</option>';
-                                }
-                            }
-                            ?>
+                        <select id="employeeServices" name="services[]" multiple>
+                            <option value="" disabled>Seleccionar servicios</option>
+                            <?php foreach ($services as $service): ?>
+                                <option value="<?php echo esc_attr($service->ID); ?>">
+                                    <?php echo esc_html($service->post_title); ?>
+                                </option>
+                            <?php endforeach; ?>
                         </select>
                         <label>Servicios</label>
                     </div>
+
                     <div class="input-field col s12 m6">
                         <i class="material-icons prefix">place</i>
-                        <select id="staff_locations" name="staff_locations[]" multiple class="select2" data-placeholder="Seleccionar ubicaciones">
-                            <option value="">Seleccionar ubicaciones</option>
-                            <option value="all">Todas las ubicaciones</option>
-                            <?php
-                            if (!empty($locations)) {
-                                foreach($locations as $location) {
-                                    echo '<option value="'.esc_attr($location->id).'">'.esc_html($location->name).'</option>';
-                                }
-                            }
-                            ?>
+                        <select id="employeeLocations" name="locations[]" multiple>
+                            <option value="" disabled>Seleccionar ubicaciones</option>
+                            <?php foreach ($locations as $location): ?>
+                                <option value="<?php echo esc_attr($location->id); ?>">
+                                    <?php echo esc_html($location->name); ?>
+                                </option>
+                            <?php endforeach; ?>
                         </select>
                         <label>Ubicaciones</label>
                     </div>
@@ -124,12 +127,42 @@ $staff = $menphis_reserva->staff;
     </div>
     <div class="modal-footer">
         <a href="#!" class="modal-close waves-effect waves-red btn-flat">Cancelar</a>
-        <button type="submit" form="staff-form" class="waves-effect waves-green btn blue">
+        <button type="submit" form="employeeForm" class="waves-effect waves-green btn blue">
             <i class="material-icons left">save</i>
             Guardar
         </button>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Inicializar modal
+    var modal = document.getElementById('employeeModal');
+    var modalInstance = M.Modal.init(modal);
+    
+    // Inicializar selects solo una vez
+    var selects = document.querySelectorAll('select');
+    M.FormSelect.init(selects);
+
+    // Función para abrir modal de crear
+    window.openCreateModal = function() {
+        document.getElementById('modalTitle').textContent = 'Crear Empleado';
+        document.getElementById('employeeForm').reset();
+        // Reinicializar los selects después de resetear
+        M.FormSelect.init(document.getElementById('employeeServices'));
+        M.FormSelect.init(document.getElementById('employeeLocations'));
+        modalInstance.open();
+    };
+
+    // Función para abrir modal de editar
+    window.openEditModal = function(employeeData) {
+        document.getElementById('modalTitle').textContent = 'Editar Empleado';
+        // Rellenar datos del empleado
+        // ...
+        modalInstance.open();
+    };
+});
+</script>
 
 <!-- Actualizar el estilo de la modal -->
 <style>
@@ -148,10 +181,14 @@ $staff = $menphis_reserva->staff;
 }
 
 .input-field {
-    margin-top: 0.5rem;
-    margin-bottom: 0.5rem;
+    margin-top: 1rem;
+    margin-bottom: 1rem;
 }
 
+.input-field .prefix {
+    font-size: 1.5rem;
+    line-height: 3rem;
+}
 .btn i {
     line-height: inherit;
 }
@@ -170,6 +207,25 @@ $staff = $menphis_reserva->staff;
     border: 1px solid #9e9e9e;
     border-radius: 4px;
 }
+
+.select-wrapper input.select-dropdown {
+    margin-bottom: 0;
+}
+
+.modal .modal-footer {
+    padding: 4px 24px;
+}
+
+.btn i {
+    line-height: inherit;
+}
 </style>
 
 <?php include MENPHIS_RESERVA_PLUGIN_DIR . 'includes/admin/views/schedule-form.php'; ?> 
+
+<?php
+// Al inicio del archivo, después de las verificaciones de seguridad
+error_log('Renderizando vista de staff');
+error_log('Servicios disponibles: ' . print_r($services, true));
+error_log('Ubicaciones disponibles: ' . print_r($locations, true));
+?> 
