@@ -76,11 +76,11 @@ class Menphis_Bookings {
             $query = "
                 SELECT 
                     b.*,
-                    u.display_name as customer_name,
+                    CONCAT(mc.first_name, ' ', mc.last_name) as customer_name,
                     l.name as location_name,
                     CONCAT(us.display_name) as staff_name
                 FROM {$wpdb->prefix}menphis_bookings b
-                LEFT JOIN {$wpdb->users} u ON b.customer_id = u.ID
+                LEFT JOIN {$wpdb->prefix}menphis_customers mc ON b.customer_id = mc.id
                 LEFT JOIN {$wpdb->prefix}menphis_locations l ON b.location_id = l.id
                 LEFT JOIN {$wpdb->prefix}menphis_staff s ON b.staff_id = s.id
                 LEFT JOIN {$wpdb->users} us ON s.wp_user_id = us.ID
@@ -116,14 +116,14 @@ class Menphis_Bookings {
             $query = "
                 SELECT 
                     b.*,
-                    u.display_name as customer_name,
+                    CONCAT(mc.first_name, ' ', mc.last_name) as customer_name,
                     l.name as location_name,
                     CONCAT(us.display_name) as staff_name
-                FROM {$this->db->prefix}menphis_bookings b
-                LEFT JOIN {$this->db->users} u ON b.customer_id = u.ID
-                LEFT JOIN {$this->db->prefix}menphis_locations l ON b.location_id = l.id
-                LEFT JOIN {$this->db->prefix}menphis_staff s ON b.staff_id = s.id
-                LEFT JOIN {$this->db->users} us ON s.wp_user_id = us.ID
+                FROM {$wpdb->prefix}menphis_bookings b
+                LEFT JOIN {$wpdb->prefix}menphis_customers mc ON b.customer_id = mc.id
+                LEFT JOIN {$wpdb->prefix}menphis_locations l ON b.location_id = l.id
+                LEFT JOIN {$wpdb->prefix}menphis_staff s ON b.staff_id = s.id
+                LEFT JOIN {$wpdb->users} us ON s.wp_user_id = us.ID
                 WHERE 1=1";
 
             $where = array();
@@ -1534,13 +1534,6 @@ class Menphis_Bookings {
                 return;
             }
 
-            // Verificar permisos
-            if (!current_user_can('manage_options')) {
-                error_log('User does not have permission');
-                wp_send_json_error('No tienes permisos para realizar esta acción');
-                return;
-            }
-
             $booking_id = isset($_POST['booking_id']) ? intval($_POST['booking_id']) : 0;
             
             error_log('=== INICIO EDIT_BOOKING ===');
@@ -1553,29 +1546,53 @@ class Menphis_Bookings {
 
             global $wpdb;
             
-            // Obtener los datos actuales de la reserva
-            $booking = $wpdb->get_row($wpdb->prepare("
+            // Obtener los datos de la reserva con los joins correctos
+            $query = $wpdb->prepare("
                 SELECT 
                     b.*,
-                    u.display_name as customer_name,
+                    mc.first_name,
+                    mc.last_name,
+                    mc.email as customer_email,
+                    mc.phone as customer_phone,
+                    CONCAT(mc.first_name, ' ', mc.last_name) as customer_name,
                     l.name as location_name,
                     CONCAT(us.display_name) as staff_name
                 FROM {$wpdb->prefix}menphis_bookings b
-                LEFT JOIN {$wpdb->users} u ON b.customer_id = u.ID
+                LEFT JOIN {$wpdb->prefix}menphis_customers mc ON b.customer_id = mc.id
                 LEFT JOIN {$wpdb->prefix}menphis_locations l ON b.location_id = l.id
                 LEFT JOIN {$wpdb->prefix}menphis_staff s ON b.staff_id = s.id
                 LEFT JOIN {$wpdb->users} us ON s.wp_user_id = us.ID
                 WHERE b.id = %d
-            ", $booking_id));
+            ", $booking_id);
 
+            error_log('Query: ' . $query);
+            
+            $booking = $wpdb->get_row($query);
+            
             if (!$booking) {
+                error_log('No se encontró la reserva con ID: ' . $booking_id);
                 wp_send_json_error('No se encontró la reserva');
                 return;
             }
 
+            error_log('Datos de la reserva encontrados: ' . print_r($booking, true));
+
             // Formatear fechas para mostrar
             $booking->booking_date = date('Y-m-d', strtotime($booking->booking_date));
             $booking->booking_time = date('H:i', strtotime($booking->booking_time));
+
+            // Obtener servicios asociados
+            $services_query = $wpdb->prepare("
+                SELECT 
+                    bs.*,
+                    p.post_title as service_name
+                FROM {$wpdb->prefix}menphis_booking_services bs
+                LEFT JOIN {$wpdb->posts} p ON bs.service_id = p.ID
+                WHERE bs.booking_id = %d
+            ", $booking_id);
+
+            $booking->services = $wpdb->get_results($services_query);
+            error_log('Servicios encontrados: ' . print_r($booking->services, true));
 
             // Obtener datos adicionales necesarios para el formulario
             $booking->customers = $this->get_customers_list();
@@ -1586,7 +1603,8 @@ class Menphis_Bookings {
 
         } catch (Exception $e) {
             error_log('Error en ajax_edit_booking: ' . $e->getMessage());
-            wp_send_json_error('Error al procesar la solicitud');
+            error_log($e->getTraceAsString());
+            wp_send_json_error('Error al procesar la solicitud: ' . $e->getMessage());
         }
     }
 
