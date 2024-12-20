@@ -98,8 +98,9 @@ jQuery(function($) {
     function showBookingDetails(bookingId) {
         const $modal = $('#booking-details-modal');
         const $modalBody = $modal.find('.modal-body');
+        const $cancelButton = $modal.find('.btn-cancel-booking');
         
-        $modalBody.html('Cargando detalles...');
+        $modalBody.html('<div class="loading">Cargando detalles...</div>');
         $modal.modal('show');
 
         $.ajax({
@@ -112,7 +113,14 @@ jQuery(function($) {
             },
             success: function(response) {
                 if (response.success && response.data) {
-                    renderBookingDetails(response.data, $modalBody);
+                    renderBookingDetails(response.data);
+                    
+                    // Mostrar botón de cancelar solo si la reserva está pendiente
+                    if (response.data.status === 'pending') {
+                        $cancelButton.show().data('booking-id', bookingId);
+                    } else {
+                        $cancelButton.hide();
+                    }
                 } else {
                     $modalBody.html('<div class="alert alert-danger">Error al cargar los detalles</div>');
                 }
@@ -122,6 +130,51 @@ jQuery(function($) {
             }
         });
     }
+
+    function renderBookingDetails(booking) {
+        const date = new Date(booking.booking_date);
+        const formattedDate = date.toLocaleDateString('es-ES', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+
+        const html = `
+            <div class="booking-details">
+                <div class="booking-detail-item">
+                    <span class="booking-detail-label">Fecha:</span>
+                    <span class="booking-detail-value">${formattedDate}</span>
+                </div>
+                <div class="booking-detail-item">
+                    <span class="booking-detail-label">Hora:</span>
+                    <span class="booking-detail-value">${booking.booking_time}</span>
+                </div>
+                <div class="booking-detail-item">
+                    <span class="booking-detail-label">Servicio:</span>
+                    <span class="booking-detail-value">${booking.service_name}</span>
+                </div>
+                <div class="booking-detail-item">
+                    <span class="booking-detail-label">Ubicación:</span>
+                    <span class="booking-detail-value">${booking.location_name}</span>
+                </div>
+                <div class="booking-detail-item">
+                    <span class="booking-detail-label">Estado:</span>
+                    <span class="status-badge status-${booking.status}">${getStatusText(booking.status)}</span>
+                </div>
+            </div>
+        `;
+
+        $('#booking-details-modal .modal-body').html(html);
+    }
+
+    $(document).on('click', '.btn-cancel-booking', function() {
+        const bookingId = $(this).data('booking-id');
+        if (confirm('¿Está seguro de que desea cancelar esta reserva?')) {
+            cancelBooking(bookingId);
+            $('#booking-details-modal').modal('hide');
+        }
+    });
 
     function cancelBooking(bookingId) {
         $.ajax({
@@ -139,14 +192,38 @@ jQuery(function($) {
                         date: $('#date-filter').val(),
                         status: $('#status-filter').val()
                     });
+                    // Mostrar mensaje de éxito
+                    showMessage('Reserva cancelada exitosamente', 'success');
                 } else {
-                    alert('No se pudo cancelar la reserva');
+                    showMessage('No se pudo cancelar la reserva', 'error');
                 }
             },
             error: function() {
-                alert('Error de conexión');
+                showMessage('Error de conexión', 'error');
             }
         });
+    }
+
+    function showMessage(message, type = 'info') {
+        const alertClass = type === 'success' ? 'alert-success' : 
+                          type === 'error' ? 'alert-danger' : 
+                          'alert-info';
+        
+        const $alert = $(`
+            <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+                ${message}
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+        `);
+
+        $('.menphis-my-bookings').prepend($alert);
+        
+        // Remover la alerta después de 5 segundos
+        setTimeout(() => {
+            $alert.alert('close');
+        }, 5000);
     }
 
     // Cargar reservas iniciales

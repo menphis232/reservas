@@ -50,15 +50,25 @@
         </div>
     </div>
 
-    <div id="booking-details-modal" class="modal fade">
+    <div class="modal" id="booking-details-modal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title"><?php _e('Detalles de la Reserva', 'menphis-reserva'); ?></h5>
-                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
                 </div>
                 <div class="modal-body">
-                    <!-- Se llenará vía AJAX -->
+                    <!-- Se llenará dinámicamente -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                        <?php _e('Volver', 'menphis-reserva'); ?>
+                    </button>
+                    <button type="button" class="btn btn-danger btn-cancel-booking" style="display: none;">
+                        <?php _e('Cancelar Reserva', 'menphis-reserva'); ?>
+                    </button>
                 </div>
             </div>
         </div>
