@@ -5,7 +5,19 @@ global $menphis_reserva;
 $staff = $menphis_reserva->staff;
 
 // Las variables $services y $locations ya están disponibles desde el controlador
+
+// Debug logs
+error_log('DEBUG - Servicios disponibles: ' . print_r($services, true));
+error_log('DEBUG - Ubicaciones disponibles: ' . print_r($locations, true));
 ?>
+
+<!-- Definir variables JavaScript -->
+<script>
+var menphisStaff = {
+    ajax_url: '<?php echo admin_url('admin-ajax.php'); ?>',
+    nonce: '<?php echo wp_create_nonce('menphis_staff_nonce'); ?>'
+};
+</script>
 
 <div class="menphis-admin">
     <div class="row">
@@ -237,17 +249,3 @@ document.addEventListener('DOMContentLoaded', function() {
 </style>
 
 <?php include MENPHIS_RESERVA_PLUGIN_DIR . 'includes/admin/views/schedule-form.php'; ?> 
-
-<?php
-// Al inicio del archivo, justo después de obtener $services y $locations
-error_log('DEBUG - Servicios disponibles: ' . print_r($services, true));
-error_log('DEBUG - Ubicaciones disponibles: ' . print_r($locations, true));
-?> 
-
-<script>
-var menphisStaff = {
-    ajax_url: '<?php echo admin_url('admin-ajax.php'); ?>',
-    nonce: '<?php echo wp_create_nonce('menphis_staff_nonce'); ?>'
-};
-</script>
-?> 
