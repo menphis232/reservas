@@ -366,16 +366,6 @@ class Menphis_Bookings {
         return $services ? implode(', ', array_column($services, 'post_title')) : 'N/A';
     }
 
-    private function get_status_text($status) {
-        $status_texts = array(
-            'pending' => __('Pendiente', 'menphis-reserva'),
-            'confirmed' => __('Confirmada', 'menphis-reserva'),
-            'completed' => __('Completada', 'menphis-reserva'),
-            'cancelled' => __('Cancelada', 'menphis-reserva')
-        );
-        return isset($status_texts[$status]) ? $status_texts[$status] : $status;
-    }
-
     private function get_booking_actions_html($booking_id) {
         $actions = array(
             'view' => array(
