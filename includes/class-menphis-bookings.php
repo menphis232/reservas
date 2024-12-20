@@ -749,13 +749,106 @@ class Menphis_Bookings {
     /**
      * Crea la reserva cuando se completa el pago
      */
+    private function create_or_update_customer($order) {
+        global $wpdb;
+        
+        error_log('=== INICIO CREATE_OR_UPDATE_CUSTOMER ===');
+        
+        $user_id = $order->get_customer_id();
+        $email = $order->get_billing_email();
+        $first_name = $order->get_billing_first_name();
+        $last_name = $order->get_billing_last_name();
+        $phone = $order->get_billing_phone();
+        
+        error_log('Datos del cliente:');
+        error_log("User ID: $user_id");
+        error_log("Email: $email");
+        error_log("Nombre: $first_name $last_name");
+        
+        // Si el usuario no existe en WordPress, crearlo
+        if (!$user_id || !get_user_by('id', $user_id)) {
+            $username = sanitize_user(current(explode('@', $email)));
+            $counter = 1;
+            $base_username = $username;
+            
+            // Asegurar username único
+            while (username_exists($username)) {
+                $username = $base_username . $counter;
+                $counter++;
+            }
+            
+            $random_password = wp_generate_password();
+            $user_id = wp_create_user($username, $random_password, $email);
+            
+            if (is_wp_error($user_id)) {
+                error_log('Error al crear usuario WordPress: ' . $user_id->get_error_message());
+                throw new Exception('Error al crear usuario');
+            }
+
+            // Actualizar datos del usuario
+            wp_update_user([
+                'ID' => $user_id,
+                'first_name' => $first_name,
+                'last_name' => $last_name,
+                'display_name' => $first_name . ' ' . $last_name,
+                'role' => 'customer'
+            ]);
+            
+            // Enviar email con credenciales
+            wp_new_user_notification($user_id, null, 'user');
+            
+            error_log('Usuario WordPress creado - ID: ' . $user_id);
+        }
+        
+        // Verificar si el cliente ya existe en nuestra tabla
+        $existing_customer = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}menphis_customers WHERE email = %s",
+            $email
+        ));
+        
+        // Preparar datos del cliente
+        $customer_data = array(
+            'wp_user_id' => $user_id,
+            'first_name' => $first_name,
+            'last_name' => $last_name,
+            'email' => $email,
+            'phone' => $phone,
+            'status' => 'active',
+            'created_at' => current_time('mysql')
+        );
+        
+        if ($existing_customer) {
+            // Actualizar cliente existente
+            $wpdb->update(
+                $wpdb->prefix . 'menphis_customers',
+                $customer_data,
+                array('id' => $existing_customer->id),
+                array('%d', '%s', '%s', '%s', '%s', '%s', '%s'),
+                array('%d')
+            );
+            error_log('Cliente actualizado - ID: ' . $existing_customer->id);
+            return $existing_customer->id;
+        } else {
+            // Crear nuevo cliente
+            $wpdb->insert(
+                $wpdb->prefix . 'menphis_customers',
+                $customer_data,
+                array('%d', '%s', '%s', '%s', '%s', '%s', '%s')
+            );
+            $customer_id = $wpdb->insert_id;
+            error_log('Nuevo cliente creado - ID: ' . $customer_id);
+            return $customer_id;
+        }
+    }
+
     public function create_booking_from_order($order_id) {
         try {
             error_log('=== INICIO CREATE_BOOKING_FROM_ORDER ===');
             error_log('Order ID: ' . $order_id);
             
-            // Verificar si ya existe una reserva
             global $wpdb;
+            
+            // Verificar si ya existe una reserva
             $existing_booking = $wpdb->get_var($wpdb->prepare(
                 "SELECT id FROM {$wpdb->prefix}menphis_bookings WHERE order_id = %d",
                 $order_id
@@ -772,6 +865,9 @@ class Menphis_Bookings {
                 return;
             }
 
+            // Crear o actualizar cliente
+            $customer_id = $this->create_or_update_customer($order);
+            
             $booking_data = WC()->session->get('booking_data');
             if (empty($booking_data)) {
                 error_log('No hay datos de reserva en la sesión');
@@ -802,7 +898,7 @@ class Menphis_Bookings {
 
             // Insertar la reserva principal
             $data_to_insert = array(
-                'customer_id' => $order->get_customer_id(),
+                'customer_id' => $customer_id, // Usar el ID del cliente de nuestra tabla
                 'staff_id' => 0,
                 'location_id' => $booking_data['location'],
                 'booking_date' => $booking_data['date'],
@@ -1381,6 +1477,23 @@ class Menphis_Bookings {
             PRIMARY KEY (id),
             KEY booking_id (booking_id),
             KEY service_id (service_id)
+        ) $charset_collate;";
+
+        // Tabla de clientes
+        $sql .= "CREATE TABLE IF NOT EXISTS {$wpdb->prefix}menphis_customers (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            wp_user_id bigint(20) NOT NULL,
+            first_name varchar(255) NOT NULL,
+            last_name varchar(255) DEFAULT NULL,
+            email varchar(255) NOT NULL,
+            phone varchar(50) DEFAULT NULL,
+            notes text DEFAULT NULL,
+            status varchar(20) NOT NULL DEFAULT 'active',
+            created_at datetime NOT NULL,
+            PRIMARY KEY (id),
+            KEY email (email),
+            KEY wp_user_id (wp_user_id),
+            KEY status (status)
         ) $charset_collate;";
 
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
