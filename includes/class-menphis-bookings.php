@@ -61,6 +61,10 @@ class Menphis_Bookings {
         // Agregar endpoint AJAX para obtener reservas del usuario
         add_action('wp_ajax_get_user_bookings', array($this, 'ajax_get_user_bookings'));
         add_action('wp_ajax_nopriv_get_user_bookings', array($this, 'ajax_get_user_bookings'));
+
+        // Agregar endpoint para obtener detalles de la reserva
+        add_action('wp_ajax_get_booking_details', array($this, 'ajax_get_booking_details'));
+        add_action('wp_ajax_nopriv_get_booking_details', array($this, 'ajax_get_booking_details'));
     }
 
     public function enqueue_booking_scripts() {
@@ -1754,5 +1758,80 @@ class Menphis_Bookings {
             error_log('Error en ajax_get_user_bookings: ' . $e->getMessage());
             wp_send_json_error('Error al obtener las reservas');
         }
+    }
+
+    public function ajax_get_booking_details() {
+        try {
+            check_ajax_referer('menphis_bookings_nonce', 'nonce');
+
+            $booking_id = isset($_POST['booking_id']) ? intval($_POST['booking_id']) : 0;
+            
+            if (!$booking_id) {
+                wp_send_json_error('ID de reserva no válido');
+                return;
+            }
+
+            global $wpdb;
+
+            // Obtener detalles de la reserva con joins a todas las tablas relacionadas
+            $booking = $wpdb->get_row($wpdb->prepare("
+                SELECT 
+                    b.*,
+                    GROUP_CONCAT(p.post_title SEPARATOR ', ') as service_name,
+                    l.name as location_name,
+                    CONCAT(c.first_name, ' ', c.last_name) as customer_name,
+                    c.email as customer_email,
+                    c.phone as customer_phone
+                FROM {$wpdb->prefix}menphis_bookings b
+                LEFT JOIN {$wpdb->prefix}menphis_booking_services bs ON b.id = bs.booking_id
+                LEFT JOIN {$wpdb->posts} p ON bs.service_id = p.ID
+                LEFT JOIN {$wpdb->prefix}menphis_locations l ON b.location_id = l.id
+                LEFT JOIN {$wpdb->prefix}menphis_customers c ON b.customer_id = c.id
+                WHERE b.id = %d
+                GROUP BY b.id
+            ", $booking_id));
+
+            if (!$booking) {
+                wp_send_json_error('Reserva no encontrada');
+                return;
+            }
+
+            // Verificar si el usuario actual tiene permiso para ver esta reserva
+            if (!current_user_can('administrator')) {
+                $customer = $wpdb->get_row($wpdb->prepare(
+                    "SELECT id FROM {$wpdb->prefix}menphis_customers WHERE wp_user_id = %d",
+                    get_current_user_id()
+                ));
+
+                if (!$customer || $customer->id != $booking->customer_id) {
+                    wp_send_json_error('No tienes permiso para ver esta reserva');
+                    return;
+                }
+            }
+
+            // Formatear fechas
+            $booking->booking_date = date('Y-m-d', strtotime($booking->booking_date));
+            $booking->booking_time = date('H:i', strtotime($booking->booking_time));
+
+            // Agregar datos adicionales que podrían ser útiles
+            $booking->can_cancel = $booking->status === 'pending' && strtotime($booking->booking_date) > time();
+            $booking->formatted_status = $this->get_status_text($booking->status);
+
+            wp_send_json_success($booking);
+
+        } catch (Exception $e) {
+            error_log('Error en ajax_get_booking_details: ' . $e->getMessage());
+            wp_send_json_error('Error al obtener los detalles de la reserva');
+        }
+    }
+
+    private function get_status_text($status) {
+        $status_texts = array(
+            'pending' => __('Pendiente', 'menphis-reserva'),
+            'confirmed' => __('Confirmada', 'menphis-reserva'),
+            'completed' => __('Completada', 'menphis-reserva'),
+            'cancelled' => __('Cancelada', 'menphis-reserva')
+        );
+        return isset($status_texts[$status]) ? $status_texts[$status] : $status;
     }
 } 
