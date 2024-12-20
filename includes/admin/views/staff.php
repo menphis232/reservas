@@ -1,4 +1,4 @@
-<?php if (!defined('ABSPATH')) exit; ?>
+<?php if (!defined('ABSPATH')) exit; 
 
 <!-- Obtener instancia de la clase de personal -->
 global $menphis_reserva;
