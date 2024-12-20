@@ -4,30 +4,29 @@ if (!defined('ABSPATH')) {
 }
 
 class Menphis_Employee_Dashboard {
-    private $employee_id;
+    private $user_id;
+    private $is_admin;
 
     public function __construct() {
-        if (current_user_can('administrator')) {
-            $this->employee_id = isset($_GET['employee_id']) ? intval($_GET['employee_id']) : 0;
-        } else {
-            $this->employee_id = get_current_user_id();
-        }
+        $this->user_id = get_current_user_id();
+        $this->is_admin = current_user_can('administrator');
         
-        // Agregar menú para empleados y administradores
-        add_action('admin_menu', array($this, 'add_employee_menu'));
+        // Agregar menú para clientes y administradores
+        add_action('admin_menu', array($this, 'add_menu'));
         
         // AJAX handlers
-        add_action('wp_ajax_get_employee_bookings', array($this, 'ajax_get_employee_bookings'));
+        add_action('wp_ajax_get_user_bookings', array($this, 'ajax_get_user_bookings'));
         add_action('wp_ajax_update_booking_status', array($this, 'ajax_update_booking_status'));
     }
 
-    public function add_employee_menu() {
-        if (current_user_can('administrator') || current_user_can('menphis_employee')) {
+    public function add_menu() {
+        // Mostrar menú para administradores y clientes
+        if ($this->is_admin || current_user_can('customer')) {
             add_menu_page(
-                __('Reservas', 'menphis-reserva'),
-                __('Reservas', 'menphis-reserva'),
-                'read',
-                'menphis-employee-dashboard',
+                __('Mis Reservas', 'menphis-reserva'),
+                __('Mis Reservas', 'menphis-reserva'),
+                'read', // Permiso mínimo para ver el menú
+                'menphis-bookings-dashboard',
                 array($this, 'render_dashboard'),
                 'dashicons-calendar-alt',
                 30
@@ -36,9 +35,10 @@ class Menphis_Employee_Dashboard {
     }
 
     public function render_dashboard() {
-        if (current_user_can('administrator')) {
-            $employees = get_users(array('role' => 'menphis_employee'));
-            include MENPHIS_RESERVA_PLUGIN_DIR . 'includes/admin/views/employee-selector.php';
+        // Si es admin, mostrar selector de clientes
+        if ($this->is_admin) {
+            $customers = get_users(array('role' => 'customer'));
+            include MENPHIS_RESERVA_PLUGIN_DIR . 'includes/admin/views/customer-selector.php';
         }
 
         // Obtener estadísticas
@@ -47,79 +47,111 @@ class Menphis_Employee_Dashboard {
         $week_bookings = $this->get_week_bookings_count();
 
         // Incluir la vista
-        include MENPHIS_RESERVA_PLUGIN_DIR . 'includes/admin/views/employee-dashboard.php';
+        include MENPHIS_RESERVA_PLUGIN_DIR . 'includes/admin/views/bookings-dashboard.php';
     }
 
     private function get_pending_bookings_count() {
         global $wpdb;
-        $where = $this->employee_id ? "WHERE staff_id = %d" : "";
-        $query = "SELECT COUNT(*) FROM {$wpdb->prefix}menphis_bookings 
-                  {$where} AND status = 'pending'";
-                  
-        return $this->employee_id ? 
-               $wpdb->get_var($wpdb->prepare($query, $this->employee_id)) :
-               $wpdb->get_var($query);
+        $where = array("status = 'pending'");
+        
+        // Si no es admin, filtrar por usuario actual
+        if (!$this->is_admin) {
+            $where[] = $wpdb->prepare("customer_id = %d", $this->user_id);
+        }
+
+        $query = "SELECT COUNT(*) FROM {$wpdb->prefix}menphis_bookings WHERE " . implode(' AND ', $where);
+        return $wpdb->get_var($query);
     }
 
     private function get_today_bookings_count() {
         global $wpdb;
-        return $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$wpdb->prefix}menphis_bookings 
-            WHERE staff_id = %d AND DATE(booking_date) = CURDATE()",
-            $this->employee_id
-        ));
+        $where = array("DATE(booking_date) = CURDATE()");
+        
+        if (!$this->is_admin) {
+            $where[] = $wpdb->prepare("customer_id = %d", $this->user_id);
+        }
+
+        $query = "SELECT COUNT(*) FROM {$wpdb->prefix}menphis_bookings WHERE " . implode(' AND ', $where);
+        return $wpdb->get_var($query);
     }
 
     private function get_week_bookings_count() {
         global $wpdb;
-        return $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$wpdb->prefix}menphis_bookings 
-            WHERE staff_id = %d 
-            AND YEARWEEK(booking_date, 1) = YEARWEEK(CURDATE(), 1)",
-            $this->employee_id
-        ));
+        $where = array("YEARWEEK(booking_date, 1) = YEARWEEK(CURDATE(), 1)");
+        
+        if (!$this->is_admin) {
+            $where[] = $wpdb->prepare("customer_id = %d", $this->user_id);
+        }
+
+        $query = "SELECT COUNT(*) FROM {$wpdb->prefix}menphis_bookings WHERE " . implode(' AND ', $where);
+        return $wpdb->get_var($query);
     }
 
-    public function ajax_get_employee_bookings() {
-        check_ajax_referer('menphis_employee_nonce', 'nonce');
+    public function ajax_get_user_bookings() {
+        check_ajax_referer('menphis_bookings_nonce', 'nonce');
 
         $start_date = isset($_POST['start_date']) ? sanitize_text_field($_POST['start_date']) : date('Y-m-d');
         $end_date = isset($_POST['end_date']) ? sanitize_text_field($_POST['end_date']) : date('Y-m-d', strtotime('+30 days'));
 
         global $wpdb;
+        
+        $where = array(
+            $wpdb->prepare("b.booking_date BETWEEN %s AND %s", $start_date, $end_date)
+        );
+
+        // Si no es admin, filtrar por usuario actual
+        if (!$this->is_admin) {
+            $where[] = $wpdb->prepare("b.customer_id = %d", $this->user_id);
+        }
+
         $bookings = $wpdb->get_results($wpdb->prepare(
-            "SELECT b.*, c.first_name, c.last_name, s.post_title as service_name
+            "SELECT 
+                b.*,
+                c.first_name, 
+                c.last_name,
+                s.post_title as service_name,
+                l.name as location_name
             FROM {$wpdb->prefix}menphis_bookings b
-            LEFT JOIN {$wpdb->prefix}menphis_customers c ON b.customer_id = c.id
+            LEFT JOIN {$wpdb->prefix}menphis_customers c ON b.customer_id = c.wp_user_id
             LEFT JOIN {$wpdb->posts} s ON b.service_id = s.ID
-            WHERE b.staff_id = %d
-            AND b.booking_date BETWEEN %s AND %s
-            ORDER BY b.booking_date ASC, b.booking_time ASC",
-            $this->employee_id,
-            $start_date,
-            $end_date
+            LEFT JOIN {$wpdb->prefix}menphis_locations l ON b.location_id = l.id
+            WHERE " . implode(' AND ', $where) . "
+            ORDER BY b.booking_date ASC, b.booking_time ASC"
         ));
 
         wp_send_json_success($bookings);
     }
 
     public function ajax_update_booking_status() {
-        check_ajax_referer('menphis_employee_nonce', 'nonce');
+        check_ajax_referer('menphis_bookings_nonce', 'nonce');
 
         $booking_id = isset($_POST['booking_id']) ? intval($_POST['booking_id']) : 0;
         $status = isset($_POST['status']) ? sanitize_text_field($_POST['status']) : '';
 
         if (!$booking_id || !$status) {
             wp_send_json_error('Datos inválidos');
+            return;
         }
 
         global $wpdb;
+        
+        // Verificar que el usuario puede actualizar esta reserva
+        $booking = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}menphis_bookings WHERE id = %d",
+            $booking_id
+        ));
+
+        if (!$booking || (!$this->is_admin && $booking->customer_id != $this->user_id)) {
+            wp_send_json_error('No tienes permiso para actualizar esta reserva');
+            return;
+        }
+
         $updated = $wpdb->update(
             $wpdb->prefix . 'menphis_bookings',
             array('status' => $status),
-            array('id' => $booking_id, 'staff_id' => $this->employee_id),
+            array('id' => $booking_id),
             array('%s'),
-            array('%d', '%d')
+            array('%d')
         );
 
         if ($updated) {
