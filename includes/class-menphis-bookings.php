@@ -368,10 +368,10 @@ class Menphis_Bookings {
 
     private function get_status_text($status) {
         $status_texts = array(
-            'pending' => 'Pendiente',
-            'confirmed' => 'Confirmada',
-            'completed' => 'Completada',
-            'cancelled' => 'Cancelada'
+            'pending' => __('Pendiente', 'menphis-reserva'),
+            'confirmed' => __('Confirmada', 'menphis-reserva'),
+            'completed' => __('Completada', 'menphis-reserva'),
+            'cancelled' => __('Cancelada', 'menphis-reserva')
         );
         return isset($status_texts[$status]) ? $status_texts[$status] : $status;
     }
