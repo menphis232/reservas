@@ -1,6 +1,22 @@
 jQuery(function($) {
     'use strict';
 
+    function closeModal() {
+        const modal = document.getElementById('booking-details-modal');
+        modal.style.display = 'none';
+        
+        // Remover el backdrop si existe
+        const backdrop = document.querySelector('.modal-backdrop');
+        if (backdrop) {
+            backdrop.remove();
+        }
+        
+        // Remover la clase modal-open del body
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
+    }
+
     function loadBookings(filters = {}) {
         const $container = $('#bookings-list-content');
         
@@ -101,7 +117,17 @@ jQuery(function($) {
         const $cancelButton = $modal.find('.btn-cancel-booking');
         
         $modalBody.html('<div class="loading">Cargando detalles...</div>');
-        $modal.modal('show');
+        
+        // Mostrar el modal y agregar clases necesarias
+        $modal.css('display', 'block');
+        document.body.classList.add('modal-open');
+        
+        // Agregar backdrop si no existe
+        if (!document.querySelector('.modal-backdrop')) {
+            const backdrop = document.createElement('div');
+            backdrop.className = 'modal-backdrop fade show';
+            document.body.appendChild(backdrop);
+        }
 
         $.ajax({
             url: menphisBookings.ajax_url,
@@ -225,6 +251,21 @@ jQuery(function($) {
             $alert.alert('close');
         }, 5000);
     }
+
+    // Agregar manejador para cerrar con la tecla ESC
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            closeModal();
+        }
+    });
+
+    // Agregar manejador para cerrar al hacer clic fuera del modal
+    document.addEventListener('click', function(event) {
+        const modal = document.getElementById('booking-details-modal');
+        if (event.target === modal) {
+            closeModal();
+        }
+    });
 
     // Cargar reservas iniciales
     loadBookings();

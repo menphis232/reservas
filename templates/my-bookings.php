@@ -55,7 +55,7 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title"><?php _e('Detalles de la Reserva', 'menphis-reserva'); ?></h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <button type="button" class="close" onclick="closeModal()">
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
@@ -63,7 +63,7 @@
                     <!-- Se llenará dinámicamente -->
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">
                         <?php _e('Volver', 'menphis-reserva'); ?>
                     </button>
                     <button type="button" class="btn btn-danger btn-cancel-booking" style="display: none;">
