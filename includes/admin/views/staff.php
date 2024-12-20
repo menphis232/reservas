@@ -1,6 +1,7 @@
-<?php if (!defined('ABSPATH')) exit; 
+<?php if (!defined('ABSPATH')) exit; ?>
 
 <!-- Obtener instancia de la clase de personal -->
+<?php
 global $menphis_reserva;
 $staff = $menphis_reserva->staff;
 
