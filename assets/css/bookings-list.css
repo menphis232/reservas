@@ -86,3 +86,38 @@
         flex-direction: column;
     }
 } 
+
+.text-center {
+    text-align: center;
+}
+
+.text-danger {
+    color: #dc3545;
+}
+
+.loading {
+    padding: 20px;
+    text-align: center;
+    color: #666;
+}
+
+/* Estilos para el modal */
+.modal-body {
+    padding: 20px;
+}
+
+.booking-detail-item {
+    margin-bottom: 15px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #eee;
+}
+
+.booking-detail-item:last-child {
+    border-bottom: none;
+}
+
+.booking-detail-label {
+    font-weight: 500;
+    color: #666;
+    margin-right: 10px;
+} 

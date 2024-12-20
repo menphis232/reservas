@@ -57,6 +57,10 @@ class Menphis_Bookings {
 
         // Agregar endpoint para editar reserva
         add_action('wp_ajax_edit_booking', array($this, 'ajax_edit_booking'));
+
+        // Agregar endpoint AJAX para obtener reservas del usuario
+        add_action('wp_ajax_get_user_bookings', array($this, 'ajax_get_user_bookings'));
+        add_action('wp_ajax_nopriv_get_user_bookings', array($this, 'ajax_get_user_bookings'));
     }
 
     public function enqueue_booking_scripts() {
@@ -1666,5 +1670,89 @@ class Menphis_Bookings {
 
         error_log('Usuario WordPress creado con ID: ' . $user_id);
         return $user_id;
+    }
+
+    public function ajax_get_user_bookings() {
+        try {
+            check_ajax_referer('menphis_bookings_nonce', 'nonce');
+
+            // Verificar si el usuario está logueado
+            if (!is_user_logged_in()) {
+                wp_send_json_error('Usuario no autenticado');
+                return;
+            }
+
+            $user_id = get_current_user_id();
+            
+            // Obtener el ID del cliente de nuestra tabla
+            global $wpdb;
+            $customer = $wpdb->get_row($wpdb->prepare(
+                "SELECT id FROM {$wpdb->prefix}menphis_customers WHERE wp_user_id = %d",
+                $user_id
+            ));
+
+            if (!$customer) {
+                wp_send_json_error('Cliente no encontrado');
+                return;
+            }
+
+            // Obtener filtros
+            $filters = isset($_POST['filters']) ? $_POST['filters'] : array();
+            
+            // Construir la consulta
+            $where = array(
+                $wpdb->prepare("b.customer_id = %d", $customer->id)
+            );
+
+            // Aplicar filtros
+            if (!empty($filters['date'])) {
+                switch ($filters['date']) {
+                    case 'upcoming':
+                        $where[] = "b.booking_date >= CURDATE()";
+                        break;
+                    case 'past':
+                        $where[] = "b.booking_date < CURDATE()";
+                        break;
+                }
+            }
+
+            if (!empty($filters['status']) && $filters['status'] !== 'all') {
+                $where[] = $wpdb->prepare("b.status = %s", $filters['status']);
+            }
+
+            // Consulta principal
+            $query = "
+                SELECT 
+                    b.*,
+                    GROUP_CONCAT(p.post_title SEPARATOR ', ') as service_name,
+                    l.name as location_name
+                FROM {$wpdb->prefix}menphis_bookings b
+                LEFT JOIN {$wpdb->prefix}menphis_booking_services bs ON b.id = bs.booking_id
+                LEFT JOIN {$wpdb->posts} p ON bs.service_id = p.ID
+                LEFT JOIN {$wpdb->prefix}menphis_locations l ON b.location_id = l.id
+                WHERE " . implode(' AND ', $where) . "
+                GROUP BY b.id
+                ORDER BY b.booking_date DESC, b.booking_time DESC";
+
+            error_log('Query de reservas: ' . $query);
+            
+            $bookings = $wpdb->get_results($query);
+            error_log('Reservas encontradas: ' . print_r($bookings, true));
+
+            // Formatear fechas y datos adicionales
+            foreach ($bookings as &$booking) {
+                $booking->booking_date = date('Y-m-d', strtotime($booking->booking_date));
+                $booking->booking_time = date('H:i', strtotime($booking->booking_time));
+                
+                // Agregar datos adicionales si es necesario
+                $booking->can_cancel = $booking->status === 'pending' && strtotime($booking->booking_date) > time();
+            }
+
+            wp_send_json_success($bookings);
+
+        } catch (Exception $e) {
+            error_log('Error en ajax_get_user_bookings: ' . $e->getMessage());
+            wp_send_json_error('Error al obtener las reservas');
+        }
     }
 } 
