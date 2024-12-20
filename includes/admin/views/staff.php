@@ -243,3 +243,11 @@ document.addEventListener('DOMContentLoaded', function() {
 error_log('DEBUG - Servicios disponibles: ' . print_r($services, true));
 error_log('DEBUG - Ubicaciones disponibles: ' . print_r($locations, true));
 ?> 
+
+<script>
+var menphisStaff = {
+    ajax_url: '<?php echo admin_url('admin-ajax.php'); ?>',
+    nonce: '<?php echo wp_create_nonce('menphis_staff_nonce'); ?>'
+};
+</script>
+?> 
