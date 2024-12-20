@@ -170,6 +170,8 @@
 .modal {
     border-radius: 8px;
     overflow: hidden;
+    margin-top: 80px !important;
+    z-index: 9999 !important;
 }
 
 .modal-header {
@@ -252,26 +254,29 @@
     padding: 8px 16px;
     border-radius: 4px;
     font-weight: 500;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
 }
 
 .btn-secondary {
-    background-color: #6c757d;
-    color: white;
-    border: none;
+    background-color: #28a745 !important;
+    color: white !important;
 }
 
 .btn-secondary:hover {
-    background-color: #5a6268;
+    background-color: #218838 !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .btn-danger {
     background-color: #dc3545;
     color: white;
-    border: none;
 }
 
 .btn-danger:hover {
     background-color: #c82333;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 /* Estilos para las alertas */
