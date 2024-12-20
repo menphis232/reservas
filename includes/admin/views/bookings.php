@@ -100,15 +100,7 @@
                                             <td><?php echo esc_html($booking->staff_name ?: 'Sin asignar'); ?></td>
                                             <td><?php echo esc_html($booking->status); ?></td>
                                             <td>
-                                                <button class="btn-small waves-effect waves-light blue view-booking" data-id="<?php echo esc_attr($booking->id); ?>">
-                                                    <i class="material-icons">visibility</i>
-                                                </button>
-                                                <button class="btn-small waves-effect waves-light green edit-booking" data-id="<?php echo esc_attr($booking->id); ?>">
-                                                    <i class="material-icons">edit</i>
-                                                </button>
-                                                <button class="btn-small waves-effect waves-light red delete-booking" data-id="<?php echo esc_attr($booking->id); ?>">
-                                                    <i class="material-icons">delete</i>
-                                                </button>
+                                                <?php echo $this->get_booking_actions_html($booking->id); ?>
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>

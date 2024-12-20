@@ -261,45 +261,27 @@ jQuery(document).ready(function($) {
     // Manejar clic en botón editar
     $(document).on('click', '.edit-booking', function(e) {
         e.preventDefault();
-        var bookingId = $(this).data('id');
+        const bookingId = $(this).data('id');
         
         $.ajax({
             url: menphisBookings.ajax_url,
             type: 'POST',
             data: {
-                action: 'get_booking',
-                nonce: menphisBookings.nonce,
-                id: bookingId
+                action: 'edit_booking',
+                booking_id: bookingId,
+                nonce: menphisBookings.nonce
             },
             success: function(response) {
+                console.log('Respuesta del servidor:', response);
                 if (response.success) {
-                    var booking = response.data;
-                    
-                    // Llenar el formulario con los datos
-                    $('#booking_id').val(booking.id);
-                    $('#customer').val(booking.customer_id).trigger('change');
-                    $('#services').val(booking.services).trigger('change');
-                    $('#booking_date').val(booking.date);
-                    $('#booking_time').val(booking.time);
-                    $('#notes').val(booking.notes);
-                    
-                    // Actualizar labels y textarea
-                    M.updateTextFields();
-                    M.textareaAutoResize($('#notes'));
-                    
-                    // Cambiar título del modal
-                    $('#modal-new-booking h4').text('Editar Reserva');
-                    
-                    // Abrir modal
-                    var modal = M.Modal.getInstance($('#modal-new-booking'));
-                    modal.open();
+                    fillBookingForm(response.data);
                 } else {
-                    M.toast({html: 'Error: ' + (response.data || 'Error al cargar reserva')});
+                    M.toast({html: response.data || 'Error al cargar los datos'});
                 }
             },
             error: function(xhr, status, error) {
-                console.error('Error al cargar reserva:', error);
-                M.toast({html: 'Error al cargar reserva'});
+                console.error('Error:', error);
+                M.toast({html: 'Error al cargar los datos'});
             }
         });
     });
@@ -361,12 +343,6 @@ jQuery(document).ready(function($) {
     $(document).on('click', '.view-booking', function() {
         var bookingId = $(this).data('id');
         viewBooking(bookingId);
-    });
-
-    // Editar reserva
-    $(document).on('click', '.edit-booking', function() {
-        var bookingId = $(this).data('id');
-        editBooking(bookingId);
     });
 
     // Eliminar reserva
@@ -444,56 +420,6 @@ jQuery(document).ready(function($) {
         });
     }
 
-    function editBooking(bookingId) {
-        if (typeof menphisBookings === 'undefined') {
-            console.error('menphisBookings no está definido');
-            return;
-        }
-
-        $.ajax({
-            url: menphisBookings.ajax_url,
-            type: 'POST',
-            data: {
-                action: 'get_booking',
-                booking_id: bookingId,
-                nonce: menphisBookings.nonce
-            },
-            success: function(response) {
-                if (response.success) {
-                    var booking = response.data;
-                    
-                    // Llenar el formulario con los datos de la reserva
-                    $('#booking_id').val(booking.id);
-                    $('#customer').val(booking.customer_id);
-                    $('#location').val(booking.location_id);
-                    $('#services').val(booking.services).trigger('change');
-                    $('#staff').val(booking.staff_id);
-                    $('#booking_date').val(booking.booking_date);
-                    $('#booking_time').val(booking.booking_time);
-                    $('#notes').val(booking.notes);
-                    
-                    // Actualizar campos materialize
-                    M.updateTextFields();
-                    M.FormSelect.init(document.querySelectorAll('select'));
-                    
-                    // Abrir el modal
-                    var modalElem = document.querySelector('#modal-new-booking');
-                    var modalInstance = M.Modal.getInstance(modalElem);
-                    if (!modalInstance) {
-                        modalInstance = M.Modal.init(modalElem);
-                    }
-                    modalInstance.open();
-                } else {
-                    M.toast({html: 'Error al cargar los datos de la reserva'});
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error('Error en la petición AJAX:', error);
-                M.toast({html: 'Error al cargar los datos de la reserva'});
-            }
-        });
-    }
-
     function deleteBooking(bookingId) {
         if (confirm('¿Estás seguro de que quieres eliminar esta reserva?')) {
             $.ajax({
@@ -522,4 +448,58 @@ jQuery(document).ready(function($) {
         var modals = document.querySelectorAll('.modal');
         M.Modal.init(modals);
     });
+
+    function fillBookingForm(booking) {
+        console.log('Llenando formulario con datos:', booking);
+
+        // Llenar campos ocultos
+        $('#booking_id').val(booking.id);
+
+        // Seleccionar cliente
+        $('#customer').val(booking.customer_id).trigger('change');
+        
+        // Seleccionar ubicación
+        $('#location').val(booking.location_id).trigger('change');
+        
+        // Seleccionar empleado si existe
+        if (booking.staff_id && booking.staff_id !== '0') {
+            $('#staff').val(booking.staff_id).trigger('change');
+        } else {
+            $('#staff').val('').trigger('change');
+        }
+
+        // Seleccionar servicios
+        if (booking.services && booking.services.length > 0) {
+            const serviceIds = booking.services.map(service => service.service_id);
+            $('#services').val(serviceIds).trigger('change');
+        } else {
+            $('#services').val(null).trigger('change');
+        }
+
+        // Llenar fecha y hora
+        $('#booking_date').val(booking.booking_date);
+        $('#booking_time').val(booking.booking_time);
+
+        // Llenar notas si existen
+        $('#notes').val(booking.notes || '');
+
+        // Actualizar campos de Materialize
+        M.updateTextFields();
+        
+        // Reinicializar selects de Materialize
+        var elems = document.querySelectorAll('select');
+        M.FormSelect.init(elems);
+
+        // Cambiar título del modal
+        $('#modal-new-booking h4').text('Editar Reserva');
+
+        // Abrir el modal
+        var modal = M.Modal.getInstance(document.querySelector('#modal-new-booking'));
+        if (modal) {
+            modal.open();
+        } else {
+            modal = M.Modal.init(document.querySelector('#modal-new-booking'));
+            modal.open();
+        }
+    }
 }); 

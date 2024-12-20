@@ -14,7 +14,6 @@ class Menphis_Bookings {
         // Agregar endpoints AJAX
         add_action('wp_ajax_get_bookings_list', array($this, 'ajax_get_bookings_list'));
         add_action('wp_ajax_add_booking', array($this, 'ajax_add_booking'));
-        add_action('wp_ajax_get_booking', array($this, 'ajax_get_booking'));
         add_action('wp_ajax_delete_booking', array($this, 'ajax_delete_booking'));
         add_action('wp_ajax_save_booking_data', array($this, 'ajax_save_booking_data'));
         add_action('wp_ajax_nopriv_save_booking_data', array($this, 'ajax_save_booking_data'));
@@ -369,19 +368,39 @@ class Menphis_Bookings {
         return isset($status_texts[$status]) ? $status_texts[$status] : $status;
     }
 
-    private function get_booking_actions_html($booking) {
-        $actions = '<div class="action-buttons">';
-        $actions .= sprintf(
-            '<button class="btn-floating btn-small waves-effect waves-light blue edit-booking" data-id="%d" title="Editar"><i class="material-icons">edit</i></button>',
-            $booking->id
+    private function get_booking_actions_html($booking_id) {
+        $actions = array(
+            'view' => array(
+                'class' => 'blue view-booking',
+                'icon' => 'visibility',
+                'title' => 'Ver'
+            ),
+            'edit' => array(
+                'class' => 'green edit-booking',
+                'icon' => 'edit',
+                'title' => 'Editar'
+            ),
+            'delete' => array(
+                'class' => 'red delete-booking',
+                'icon' => 'delete',
+                'title' => 'Eliminar'
+            )
         );
-        $actions .= '&nbsp;';
-        $actions .= sprintf(
-            '<button class="btn-floating btn-small waves-effect waves-light red delete-booking" data-id="%d" title="Eliminar"><i class="material-icons">delete</i></button>',
-            $booking->id
-        );
-        $actions .= '</div>';
-        return $actions;
+
+        $html = '';
+        foreach ($actions as $action => $data) {
+            $html .= sprintf(
+                '<button class="btn-small waves-effect waves-light %s" data-id="%d" title="%s">
+                    <i class="material-icons">%s</i>
+                </button> ',
+                esc_attr($data['class']),
+                esc_attr($booking_id),
+                esc_attr($data['title']),
+                esc_html($data['icon'])
+            );
+        }
+
+        return $html;
     }
 
     public function ajax_get_booking() {
@@ -1538,6 +1557,7 @@ class Menphis_Bookings {
             
             error_log('=== INICIO EDIT_BOOKING ===');
             error_log('Booking ID recibido: ' . $booking_id);
+            error_log('POST data: ' . print_r($_POST, true));
             
             if (!$booking_id) {
                 wp_send_json_error('ID de reserva no válido');
@@ -1550,11 +1570,9 @@ class Menphis_Bookings {
             $query = $wpdb->prepare("
                 SELECT 
                     b.*,
-                    mc.first_name,
-                    mc.last_name,
+                    CONCAT(mc.first_name, ' ', mc.last_name) as customer_name,
                     mc.email as customer_email,
                     mc.phone as customer_phone,
-                    CONCAT(mc.first_name, ' ', mc.last_name) as customer_name,
                     l.name as location_name,
                     CONCAT(us.display_name) as staff_name
                 FROM {$wpdb->prefix}menphis_bookings b
@@ -1565,19 +1583,14 @@ class Menphis_Bookings {
                 WHERE b.id = %d
             ", $booking_id);
 
-            error_log('Query: ' . $query);
-            
             $booking = $wpdb->get_row($query);
             
             if (!$booking) {
-                error_log('No se encontró la reserva con ID: ' . $booking_id);
                 wp_send_json_error('No se encontró la reserva');
                 return;
             }
 
-            error_log('Datos de la reserva encontrados: ' . print_r($booking, true));
-
-            // Formatear fechas para mostrar
+            // Formatear fechas
             $booking->booking_date = date('Y-m-d', strtotime($booking->booking_date));
             $booking->booking_time = date('H:i', strtotime($booking->booking_time));
 
@@ -1592,10 +1605,8 @@ class Menphis_Bookings {
             ", $booking_id);
 
             $booking->services = $wpdb->get_results($services_query);
-            error_log('Servicios encontrados: ' . print_r($booking->services, true));
 
-            // Obtener datos adicionales necesarios para el formulario
-            $booking->customers = $this->get_customers_list();
+            // Obtener listas necesarias para el formulario
             $booking->locations = $this->get_locations_list();
             $booking->staff = $this->get_staff_list();
 
@@ -1603,8 +1614,7 @@ class Menphis_Bookings {
 
         } catch (Exception $e) {
             error_log('Error en ajax_edit_booking: ' . $e->getMessage());
-            error_log($e->getTraceAsString());
-            wp_send_json_error('Error al procesar la solicitud: ' . $e->getMessage());
+            wp_send_json_error('Error al procesar la solicitud');
         }
     }
 
