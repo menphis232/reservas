@@ -181,22 +181,18 @@ jQuery(document).ready(function($) {
                     // Actualizar selects múltiples
                     if (staff.services) {
                         $('#employeeServices').val(staff.services);
-                        M.FormSelect.init(document.getElementById('employeeServices'));
                     }
                     if (staff.locations) {
                         $('#employeeLocations').val(staff.locations);
-                        M.FormSelect.init(document.getElementById('employeeLocations'));
                     }
                     
-                    // Actualizar labels
+                    // Actualizar labels y reinicializar selects
                     M.updateTextFields();
+                    initializeSelects();
                     
-                    // Cambiar título del modal
+                    // Cambiar título del modal y abrirlo
                     $('#modalTitle').text('Editar Empleado');
-                    
-                    // Abrir modal
-                    var modal = M.Modal.getInstance(document.getElementById('employeeModal'));
-                    modal.open();
+                    M.Modal.getInstance(document.getElementById('employeeModal')).open();
                 } else {
                     M.toast({html: 'Error: ' + (response.data || 'Error al cargar empleado')});
                 }
@@ -493,6 +489,53 @@ jQuery(document).ready(function($) {
                 console.error('Error en la petición:', {xhr, status, error});
                 M.toast({html: 'Error al guardar: ' + error});
             }
+        });
+    });
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Inicializar modal
+        var modal = document.getElementById('employeeModal');
+        var modalInstance = M.Modal.init(modal, {
+            dismissible: true,
+            onOpenStart: function() {
+                // Reinicializar los selects cuando se abre el modal
+                initializeSelects();
+            }
+        });
+        
+        // Función para inicializar los selects
+        function initializeSelects() {
+            var serviceSelect = document.getElementById('employeeServices');
+            var locationSelect = document.getElementById('employeeLocations');
+            
+            if (serviceSelect) {
+                M.FormSelect.init(serviceSelect, {
+                    dropdownOptions: {
+                        container: document.body
+                    }
+                });
+            }
+            
+            if (locationSelect) {
+                M.FormSelect.init(locationSelect, {
+                    dropdownOptions: {
+                        container: document.body
+                    }
+                });
+            }
+        }
+
+        // Inicializar selects al cargar la página
+        initializeSelects();
+
+        // Manejar el botón de nuevo empleado
+        document.querySelector('[href="#employeeModal"]').addEventListener('click', function(e) {
+            e.preventDefault();
+            document.getElementById('modalTitle').textContent = 'Nuevo Empleado';
+            document.getElementById('employeeForm').reset();
+            document.getElementById('employee_id').value = '';
+            initializeSelects();
+            modalInstance.open();
         });
     });
 }); 

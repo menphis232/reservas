@@ -123,6 +123,8 @@ class MenphisStaff {
     }
 
     public function get_services() {
+        error_log('Obteniendo servicios...');
+        
         // Obtener servicios que son productos WooCommerce marcados como servicios
         $args = array(
             'post_type' => 'product',
@@ -130,24 +132,32 @@ class MenphisStaff {
             'meta_query' => array(
                 array(
                     'key' => '_is_service',
-                    'value' => 'yes'
+                    'value' => 'yes',
+                    'compare' => '='
                 )
             )
         );
         
-        return get_posts($args);
+        $services = get_posts($args);
+        error_log('Servicios encontrados: ' . count($services));
+        return $services;
     }
 
     public function get_locations() {
+        error_log('Obteniendo ubicaciones...');
+        
         global $wpdb;
         $table_name = $wpdb->prefix . 'menphis_locations';
         
         // Verificar si la tabla existe
         if($wpdb->get_var("SHOW TABLES LIKE '$table_name'") != $table_name) {
+            error_log('Tabla de ubicaciones no existe');
             return array();
         }
         
-        return $wpdb->get_results("SELECT * FROM $table_name WHERE status = 'active'");
+        $locations = $wpdb->get_results("SELECT * FROM $table_name WHERE status = 'active'");
+        error_log('Ubicaciones encontradas: ' . count($locations));
+        return $locations;
     }
 
     // Métodos AJAX
@@ -218,8 +228,9 @@ class MenphisStaff {
         $locations = $this->get_locations();
         
         // Debug
-        error_log('Servicios encontrados: ' . count($services));
-        error_log('Ubicaciones encontradas: ' . count($locations));
+        error_log('Renderizando página de staff');
+        error_log('Servicios cargados: ' . count($services));
+        error_log('Ubicaciones cargadas: ' . count($locations));
         
         // Incluir la vista
         include MENPHIS_RESERVA_PLUGIN_DIR . 'includes/admin/views/staff.php';

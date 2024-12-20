@@ -219,13 +219,27 @@ document.addEventListener('DOMContentLoaded', function() {
 .btn i {
     line-height: inherit;
 }
+
+.modal .select-wrapper {
+    position: relative;
+    z-index: 1000;
+}
+
+.modal .dropdown-content {
+    z-index: 1001 !important;
+}
+
+.select-wrapper input.select-dropdown {
+    position: relative;
+    z-index: 1;
+    background-color: transparent;
+}
 </style>
 
 <?php include MENPHIS_RESERVA_PLUGIN_DIR . 'includes/admin/views/schedule-form.php'; ?> 
 
 <?php
-// Al inicio del archivo, después de las verificaciones de seguridad
-error_log('Renderizando vista de staff');
-error_log('Servicios disponibles: ' . print_r($services, true));
-error_log('Ubicaciones disponibles: ' . print_r($locations, true));
+// Al inicio del archivo, justo después de obtener $services y $locations
+error_log('DEBUG - Servicios disponibles: ' . print_r($services, true));
+error_log('DEBUG - Ubicaciones disponibles: ' . print_r($locations, true));
 ?> 
