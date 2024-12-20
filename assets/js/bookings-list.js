@@ -2,6 +2,11 @@ jQuery(function($) {
     'use strict';
 
     function loadBookings(filters = {}) {
+        const $container = $('#bookings-list-content');
+        
+        // Mostrar indicador de carga
+        $container.html('<tr><td colspan="6" class="text-center">Cargando reservas...</td></tr>');
+
         $.ajax({
             url: menphisBookings.ajax_url,
             type: 'POST',
@@ -11,9 +16,18 @@ jQuery(function($) {
                 filters: filters
             },
             success: function(response) {
-                if (response.success) {
-                    renderBookings(response.data);
+                if (response.success && response.data) {
+                    if (response.data.length > 0) {
+                        renderBookings(response.data);
+                    } else {
+                        $container.html('<tr><td colspan="6" class="text-center">No se encontraron reservas</td></tr>');
+                    }
+                } else {
+                    $container.html('<tr><td colspan="6" class="text-center text-danger">Error al cargar las reservas</td></tr>');
                 }
+            },
+            error: function() {
+                $container.html('<tr><td colspan="6" class="text-center text-danger">Error de conexión</td></tr>');
             }
         });
     }
@@ -80,6 +94,60 @@ jQuery(function($) {
             cancelBooking(bookingId);
         }
     });
+
+    function showBookingDetails(bookingId) {
+        const $modal = $('#booking-details-modal');
+        const $modalBody = $modal.find('.modal-body');
+        
+        $modalBody.html('Cargando detalles...');
+        $modal.modal('show');
+
+        $.ajax({
+            url: menphisBookings.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'get_booking_details',
+                booking_id: bookingId,
+                nonce: menphisBookings.nonce
+            },
+            success: function(response) {
+                if (response.success && response.data) {
+                    renderBookingDetails(response.data, $modalBody);
+                } else {
+                    $modalBody.html('<div class="alert alert-danger">Error al cargar los detalles</div>');
+                }
+            },
+            error: function() {
+                $modalBody.html('<div class="alert alert-danger">Error de conexión</div>');
+            }
+        });
+    }
+
+    function cancelBooking(bookingId) {
+        $.ajax({
+            url: menphisBookings.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'cancel_booking',
+                booking_id: bookingId,
+                nonce: menphisBookings.nonce
+            },
+            success: function(response) {
+                if (response.success) {
+                    // Recargar la lista de reservas
+                    loadBookings({
+                        date: $('#date-filter').val(),
+                        status: $('#status-filter').val()
+                    });
+                } else {
+                    alert('No se pudo cancelar la reserva');
+                }
+            },
+            error: function() {
+                alert('Error de conexión');
+            }
+        });
+    }
 
     // Cargar reservas iniciales
     loadBookings();
