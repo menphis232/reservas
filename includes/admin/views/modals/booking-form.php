@@ -10,7 +10,7 @@
             <div class="row">
                 <div class="col s12">
                     <div class="input-field">
-                        <select id="booking-client" required>
+                        <select id="booking-client" class="browser-default" required>
                             <option value="" disabled selected>Seleccionar cliente</option>
                             <?php
                             $clients = get_users(array('role' => 'customer'));
@@ -21,7 +21,7 @@
                                 </option>
                             <?php endforeach; ?>
                         </select>
-                        <label>Cliente</label>
+                        <label class="active">Cliente</label>
                     </div>
                 </div>
             </div>
@@ -121,6 +121,56 @@
 </div>
 
 <style>
+/* Estilos actualizados para los selects de Materialize */
+.input-field select.browser-default {
+    background-color: transparent;
+    border: none;
+    border-bottom: 1px solid #9e9e9e;
+    border-radius: 0;
+    outline: none;
+    height: 3rem;
+    width: 100%;
+    font-size: 16px;
+    margin: 0;
+    padding: 0;
+    display: block;
+    -webkit-box-sizing: content-box;
+    box-sizing: content-box;
+}
+
+.input-field select.browser-default:focus {
+    border-bottom: 1px solid #26a69a;
+    box-shadow: 0 1px 0 0 #26a69a;
+}
+
+/* Estilo para el select múltiple */
+.input-field select[multiple].browser-default {
+    height: auto;
+    padding: 5px;
+    border: 1px solid #9e9e9e;
+}
+
+.input-field select[multiple].browser-default:focus {
+    border: 1px solid #26a69a;
+    box-shadow: 0 1px 0 0 #26a69a;
+}
+
+/* Ajuste para las etiquetas */
+.input-field label.active {
+    transform: translateY(-14px) scale(0.8);
+    transform-origin: 0 0;
+}
+
+/* Estilo para las opciones */
+.input-field select.browser-default option {
+    padding: 8px;
+}
+
+/* Ajuste del espacio para el label */
+.input-field {
+    margin-top: 2rem;
+}
+
 /* Estilos específicos para el formulario de reserva */
 .modal .input-field {
     margin-top: 1rem;
@@ -162,4 +212,18 @@
 .select2-container .select2-selection--multiple {
     min-height: 45px;
 }
-</style> 
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Inicializar los selects de Materialize
+    var elems = document.querySelectorAll('select');
+    var instances = M.FormSelect.init(elems, {});
+    
+    // Para el select múltiple de servicios
+    var serviceSelect = document.querySelector('#booking-services');
+    M.FormSelect.init(serviceSelect, {
+        isMultiple: true
+    });
+});
+</script> 

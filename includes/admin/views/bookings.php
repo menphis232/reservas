@@ -125,7 +125,7 @@
                 <div class="row">
                     <div class="input-field col s12 m6">
                         <i class="material-icons prefix">person</i>
-                        <select id="customer" name="customer" class="select2" required>
+                        <select id="customer" name="customer"  required>
                             <option value="" disabled selected>Seleccionar cliente</option>
                             <?php foreach($customers as $customer): ?>
                                 <option value="<?php echo esc_attr($customer->id); ?>">
@@ -137,15 +137,13 @@
                     </div>
                     <div class="input-field col s12 m6">
                         <i class="material-icons prefix">location_on</i>
-                        <select id="location" name="location" class="select2" required>
+                        <select id="location" name="location" required>
                             <option value="" disabled selected>Seleccionar ubicación</option>
-                            <?php if (!empty($locations)): ?>
-                                <?php foreach($locations as $location): ?>
-                                    <option value="<?php echo esc_attr($location->id); ?>">
-                                        <?php echo esc_html($location->name); ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
+                            <?php foreach($locations as $location): ?>
+                                <option value="<?php echo esc_attr($location->id); ?>">
+                                    <?php echo esc_html($location->name); ?>
+                                </option>
+                            <?php endforeach; ?>
                         </select>
                         <label>Ubicación</label>
                     </div>
@@ -154,7 +152,7 @@
                 <div class="row">
                     <div class="input-field col s12 m6">
                         <i class="material-icons prefix">content_cut</i>
-                        <select id="services" name="services[]" multiple class="select2" required>
+                        <select id="services" name="services[]" multiple required>
                             <?php foreach($services as $service): ?>
                                 <option value="<?php echo esc_attr($service->ID); ?>">
                                     <?php echo esc_html($service->post_title); ?>
@@ -165,7 +163,7 @@
                     </div>
                     <div class="input-field col s12 m6">
                         <i class="material-icons prefix">person</i>
-                        <select id="staff" name="staff" class="select2">
+                        <select id="staff" name="staff" >
                             <option value="" selected>Asignar automáticamente</option>
                             <?php foreach($staff_members as $staff): ?>
                                 <option value="<?php echo esc_attr($staff->id); ?>">
